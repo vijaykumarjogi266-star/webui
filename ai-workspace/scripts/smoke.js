@@ -44,8 +44,6 @@ const checks = [
     } },
   { name: 'front-end bundle served as external JS', method: 'GET', path: '/index.js', status: 200,
     headers: (h) => /javascript/.test(h.get('content-type') || '') },
-  { name: 'hub launcher served at /hub.html (no auth needed)', method: 'GET', path: '/hub.html', status: 200,
-    headers: (h) => /text\/html/.test(h.get('content-type') || '') },
   { name: 'utility page served at /utility.html (no auth needed)', method: 'GET', path: '/utility.html', status: 200,
     headers: (h) => /text\/html/.test(h.get('content-type') || '') },
   { name: 'GET /api/bootstrap unauthenticated → 401', method: 'GET', path: '/api/bootstrap', status: 401, json: (b) => b && b.error },

@@ -36,7 +36,6 @@ if (location.protocol !== 'file:') {
 var LINKS = [
   ['/', 'Chat UI', 'Main workspace — chat, RAG, repos'],
   ['/atelier.html', 'Atelier UI', 'Alternate layout, same API'],
-  ['/hub.html', 'Hub page', 'Served launcher (needs server)'],
   ['/api/health/ready', 'Readiness', 'JSON counters, no token']
 ];
 function demoTile(file, label) {

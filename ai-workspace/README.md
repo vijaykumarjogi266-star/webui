@@ -18,14 +18,12 @@ A running implementation of the MVP core from `../ai-web-ui-plan/AI_WEB_UI_BUILD
 | Governance | Versioned default system prompt with retrieval-boundary injection defense; refusal phrasing rule |
 | Ops | `/api/health/live` + `/ready`, graceful SIGTERM persistence |
 
-## Project hub
+## Utility console
 
-**With the server running: <http://localhost:3000/hub.html>** — a launcher page linking the
-live app, the offline demos, every doc, the API surface and the command list, with a status
-strip showing whether the server is up and whether a token is required. No sign-in needed.
-
-You can also open [`public/hub.html`](public/hub.html) straight from disk with no server at
-all; the documentation links adapt to whichever context you are in.
+**With the server running: <http://localhost:3000/utility.html>** — a single page for driving
+the project: live status probe, token sign-in, an API request tester with presets and
+pretty-printed responses, a file-to-base64 upload helper, plus links to the app, the offline
+demos and every doc. Served outside the auth gate, so it is reachable before you sign in.
 
 ## Run
 

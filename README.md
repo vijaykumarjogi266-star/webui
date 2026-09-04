@@ -11,15 +11,13 @@ Delivered against the V3 master prompt ("Expert-Level AI Web UI Build Prompt"). 
 
 ## Start here
 
-Start the server, then open **<http://localhost:3000/hub.html>** — a launcher page linking the
-live app, the offline demos, all documentation, the API surface and the command list, with a
-live status strip. No sign-in required to view it.
+Start the server, then open **<http://localhost:3000/utility.html>** — a developer console for
+the project: live server status, token sign-in, an API request tester, a file-to-base64 upload
+helper, and links to the app, the offline demos and every doc. No sign-in required to view it.
 
 ```bash
-cd ai-workspace && node server.js     # then open http://localhost:3000/hub.html
+cd ai-workspace && node server.js     # then open http://localhost:3000/utility.html
 ```
-
-No server handy? Open `ai-workspace/public/hub.html` directly from disk — the links adapt.
 
 ## Quick start (the app)
 

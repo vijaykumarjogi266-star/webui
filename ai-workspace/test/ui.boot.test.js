@@ -77,19 +77,19 @@ for (const file of ['index.js', 'atelier.js']) {
 }
 
 test('no inline event handlers or inline <script> remain in the served HTML/JS', () => {
-  for (const f of ['index.html', 'atelier.html', 'hub.html', 'utility.html',
-                   'index.js', 'atelier.js', 'hub.js', 'utility.js']) {
+  for (const f of ['index.html', 'atelier.html', 'utility.html',
+                   'index.js', 'atelier.js', 'utility.js']) {
     const src = fs.readFileSync(path.join(PUBLIC, f), 'utf8');
     assert.ok(!/\son\w+\s*=\s*["']/.test(src), `${f} still contains an inline event handler`);
   }
-  for (const f of ['index.html', 'atelier.html', 'hub.html', 'utility.html']) {
+  for (const f of ['index.html', 'atelier.html', 'utility.html']) {
     const src = fs.readFileSync(path.join(PUBLIC, f), 'utf8');
-    if (f !== 'hub.html') assert.ok(!/<style>/.test(src), `${f} still contains an inline <style> block`);
+    assert.ok(!/<style>/.test(src), `${f} still contains an inline <style> block`);
     assert.ok(!/<script>/.test(src), `${f} still contains an inline <script> block`);
   }
 });
 
-for (const page of ['hub.html', 'utility.html']) {
+for (const page of ['utility.html']) {
 test(`${page} links resolve: docs on disk, live links to served paths`, () => {
   const src = fs.readFileSync(path.join(PUBLIC, page), 'utf8');
   const hrefs = [...src.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
@@ -112,13 +112,3 @@ test(`${page} links resolve: docs on disk, live links to served paths`, () => {
 });
 }
 
-test('standalone utility.html stays in sync with public/utility.* (npm run demo)', () => {
-  const gen = fs.readFileSync(path.join(__dirname, '..', 'utility.html'), 'utf8');
-  const css = fs.readFileSync(path.join(PUBLIC, 'utility.css'), 'utf8').trim();
-  const js = fs.readFileSync(path.join(PUBLIC, 'utility.js'), 'utf8').trim();
-  // Compare the WHOLE asset, not a prefix: a prefix check silently passes when
-  // the source is edited anywhere past the first few lines.
-  assert.ok(gen.includes(css), 'standalone utility.html has stale CSS — run: npm run demo');
-  assert.ok(gen.includes(js), 'standalone utility.html has stale JS — run: npm run demo');
-  assert.ok(!/src="\/utility\.js"/.test(gen), 'standalone copy still references an external script');
-});

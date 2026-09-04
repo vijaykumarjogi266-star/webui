@@ -247,11 +247,3 @@ function buildDemo(srcFile, outFile) {
 buildDemo('public/index.html', 'demo-ui.html');
 buildDemo('public/atelier.html', 'demo-atelier.html');
 
-// utility.html is the same idea without the mock backend: public/utility.* is
-// the served source of truth, and this produces the portable single-file copy
-// so there is only ever one place to edit.
-(function buildUtility() {
-  const out = inlineAssets(fs.readFileSync(path.join(__dirname, 'public/utility.html'), 'utf8'));
-  fs.writeFileSync(path.join(__dirname, 'utility.html'), out);
-  console.log('utility.html written:', out.length, 'bytes (standalone copy of public/utility.html)');
-})();
