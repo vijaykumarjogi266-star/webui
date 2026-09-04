@@ -6,3 +6,11 @@ node_modules/
 *.log
 .DS_Store
 tests/
+
+# local env overrides — commit .env.example, never .env
+.env
+.env.local
+.env.*.local
+
+# deploy scratch on VMs
+*.pid

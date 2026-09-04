@@ -15,7 +15,16 @@ cd ai-workspace
 node server.js        # → http://localhost:3000 (Node 20, no npm install)
 ```
 
-Then add an OpenRouter/Groq key in Provider settings (or complete the first-run wizard), chat, upload `ai-workspace/tests/meridian-q3.pdf`, and ask about it.
+Then add an OpenRouter/Groq key in Provider settings (or complete the first-run wizard), chat, upload a PDF, and ask about it. (Note: `ai-workspace/tests/` is git-ignored, so the sample `meridian-q3.pdf` mentioned in the review docs is a local fixture — use any text PDF.)
+
+## Deploy
+
+`ai-workspace/` ships a full deploy layer for this zero-dependency build: `package.json`
+(`start` / `smoke` / `check`), `Dockerfile` (non-root, healthcheck, SIGTERM-aware),
+`docker-compose.yml`, `Procfile`, Render/Fly/Railway manifests, a hardened systemd unit +
+nginx site for an OCI compute VM, a `data/` backup-restore script, and a CI workflow.
+Details and the persistence caveat: `ai-workspace/deploy/README.md`.
+
 
 ## Document map
 
@@ -29,4 +38,6 @@ Then add an OpenRouter/Groq key in Provider settings (or complete the first-run 
 
 - Plan: v1.1 complete (end-user fixes absorbed — §47 changelog)
 - Demo build: accepted as reference implementation; production blockers listed in `ai-workspace/BUILD_REVIEW.md` §3
-- GitHub push: pending — repository needs a remote URL + credentials (none present in this environment)
+- Deploy layer: added — Node manifests + Docker + VM/PaaS runbook in `ai-workspace/deploy/`
+- GitHub: pushed to `https://github.com/vijaykumarjogi266-star/webui` (the earlier "no remote/credentials in this environment" note is obsolete)
+
