@@ -209,6 +209,29 @@ test('timingSafeEqual — empty never authenticates (V20 regression)', () => {
   assert.equal(sec.timingSafeEqual('secret-token', 'secret-token'), true);
 });
 
+test('loadAppToken — a too-short APP_TOKEN fails loudly, never silently ignored (V32)', () => {
+  const prev = process.env.APP_TOKEN;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aiw-token-'));
+
+  process.env.APP_TOKEN = 'tooshort';
+  assert.throws(() => sec.loadAppToken(dir), /too short/i,
+    'a short APP_TOKEN must abort startup, not fall back to a generated token');
+
+  process.env.APP_TOKEN = 'a-sufficiently-long-token';
+  assert.equal(sec.loadAppToken(dir), 'a-sufficiently-long-token');
+
+  // Unset: a token is generated and persisted with restrictive permissions.
+  delete process.env.APP_TOKEN;
+  const gen = sec.loadAppToken(dir);
+  assert.ok(gen && gen.length >= 16);
+  const mode = fs.statSync(path.join(dir, 'app.token')).mode & 0o777;
+  assert.equal(mode, 0o600, `app.token mode is ${mode.toString(8)}, expected 600`);
+  assert.equal(sec.loadAppToken(dir), gen, 'generated token must be stable across calls');
+
+  if (prev === undefined) delete process.env.APP_TOKEN; else process.env.APP_TOKEN = prev;
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test('session HMAC — verifies, expires, rejects tampering and cross-token replay', () => {
   const tok = 'a-very-secret-token-value';
   const s = sec.mintSession(tok);

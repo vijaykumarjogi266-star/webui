@@ -67,7 +67,7 @@ renderer XSS, missing rate limits and security headers, path traversal, secret h
 17 more found by four further passes that audited the fixes themselves — a CSRF bypass via
 `X-Forwarded-Host`, an SSRF bypass via IPv4-mapped IPv6, a login limiter that locked out the
 legitimate owner, a PDF decompression bomb, and a quadratic-blowup DoS in the PDF parser
-caught by the fuzzer. 31 findings total; all fixed.
+caught by the fuzzer. 32 findings total; all fixed.
 
 On first boot the server prints a generated access token and stores it at `data/app.token`
 (mode 0600). Paste it into the unlock prompt in the UI, or send it as
@@ -75,7 +75,7 @@ On first boot the server prints a generated access token and stores it at `data/
 trusted loopback dev box. Always deploy behind TLS with `TRUST_PROXY=true` and `FORCE_HSTS=true`.
 
 ```bash
-npm test        # 44 unit + route tests (security primitives, every route's auth/CSRF gate)
+npm test        # 45 unit + route tests (security primitives, every route's auth/CSRF gate)
 npm run fuzz    # PDF parser fuzzer (deterministic seed; found the V29 quadratic DoS)
 npm run smoke   # 28-check deploy gate, 21 of them security assertions
 npm run check   # all of the above

@@ -17,7 +17,11 @@ const PORT = TARGET ? null : Number(process.env.SMOKE_PORT || 3100 + Math.floor(
 const DEADLINE_MS = Number(process.env.SMOKE_TIMEOUT_MS || 25000);
 // The auth gate is part of the build now: the smoke run injects a known token so
 // it can exercise both the unauthenticated (401) and authenticated paths.
-const APP_TOKEN = process.env.APP_TOKEN || 'smoke-token-' + Math.random().toString(36).slice(2, 10);
+// Must satisfy the server's minimum token length, otherwise every authed check
+// silently 401s and the whole suite reports a misleading failure.
+const APP_TOKEN = (process.env.APP_TOKEN && process.env.APP_TOKEN.length >= 16)
+  ? process.env.APP_TOKEN
+  : 'smoke-token-' + require('crypto').randomBytes(12).toString('hex');
 
 const checks = [
   { name: 'GET /api/health/live → 200 ok:true', method: 'GET', path: '/api/health/live', status: 200, json: (b) => b && b.ok === true },

@@ -12,10 +12,10 @@ including a real CSRF bypass and an SSRF filter bypass. A **third pass** (§6) c
 hardening for availability and correctness rather than just exploitability, and found the
 brute-force limiter had turned into a self-inflicted lockout. A **fourth pass** (§7) attacked
 the file parsers and found an unfixed decompression bomb. A **fifth pass** (§8) closed the
-testing gaps §7 admitted to — unit tests, a fuzzer, and full route coverage — and found 3 more
+testing gaps §7 admitted to — unit tests, a fuzzer, and full route coverage — and found 4 more
 issues, including a quadratic-blowup DoS in the PDF parser. All fixed.
 
-**Test gate: 44 unit/route tests + 28 smoke checks + a PDF fuzzer, all green.**
+**Test gate: 45 unit/route tests + 28 smoke checks + a PDF fuzzer, all green.**
 This document is still not a claim of "secure" — §8 lists what remains.
 
 ---
@@ -259,17 +259,18 @@ fixes*, pass 3 found 6 more, pass 4 found 1. Converging, not converged. Specific
 ## 8. Fifth pass — building the tests §7 said were missing
 
 §7 listed three admitted gaps: no unit tests for the security primitives, no fuzzing of the
-PDF parser, and 11-of-30 route coverage. Closing them found 3 more defects.
+PDF parser, and 11-of-30 route coverage. Closing them found 4 more defects.
 
 | # | Sev | Finding | Status |
 |---|-----|---------|--------|
 | V29 | **High** | **Quadratic blowup in the PDF object scanner (algorithmic DoS).** Found by the new fuzzer, which flagged a `repetition` case at **1734 ms**. The object regex `/(\d+)\s+\d+\s+obj([\s\S]*?)endobj/g` starts a lazy scan at every `N 0 obj` header; when no `endobj` follows, each of the *n* headers scans to EOF — O(n²). A 280 KB file of `"1 0 obj"` repeated 40 000 times burns ~1.3 s of CPU on a single-threaded server that accepts 20 MB uploads. Rewritten to find each header then `indexOf('endobj')` and resume past it: **1262 ms → 0 ms**, and 160 k repetitions now costs 1 ms. Multi-page flate-compressed PDFs still extract correctly. | Fixed |
 | V30 | Medium | **GitHub rate limit metered before validation.** `POST /api/github` consumed its 5/min budget on requests that were about to be rejected as malformed, so six bad requests locked out legitimate indexing and returned a misleading `429` for what was actually a `400`. Validation now runs first. | Fixed |
+| V32 | Medium | **A too-short `APP_TOKEN` was silently ignored.** `loadAppToken()` required ≥16 chars and, if the operator's value was shorter, quietly fell back to a *generated* token — so the configured credential simply did not work, every request 401'd, and nothing anywhere explained why. Found when a 14-character token made the smoke suite report 15/28 and look like a security regression. Now refuses to start with an explicit error. (Also hardened `smoke.js` so a short env token can't produce a misleading failure.) | Fixed |
 | V31 | Medium | **413 responses reset the connection.** `readBody()` called `req.destroy()` on oversize input, so the client saw a TCP reset (`status 0`) rather than a usable status code. The first fix — `req.pause()` — was worse: it stalled the socket and **wedged the next keep-alive request for 5 s**, caught only because the route suite asserts the server is still healthy afterwards. Correct fix: drain and discard, respond 413, and set `Connection: close`. | Fixed |
 
 ### What was built
 
-**`test/security.test.js` — 22 unit tests** covering `isPrivateIp` (both IPv4-mapped IPv6
+**`test/security.test.js` — 23 unit tests** covering `isPrivateIp` (both IPv4-mapped IPv6
 spellings), `assertSafeUrl` (schemes, embedded credentials, obfuscated IP encodings),
 `assertResolvesPublic`, `assertId`/`assertGithubSegment` (prototype keys, traversal),
 `validateImages`, `resolveStatic` (traversal, null bytes, symlink escape, prefix-sibling

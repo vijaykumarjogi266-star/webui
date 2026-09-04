@@ -17,8 +17,18 @@ const AUTH_DISABLED = String(process.env.AUTH_DISABLED || '').toLowerCase() === 
 const TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
 const COOKIE = 'aiw_session';
 
+const MIN_TOKEN_LEN = 16;
 function loadAppToken(dataDir) {
-  if (process.env.APP_TOKEN && process.env.APP_TOKEN.length >= 16) return process.env.APP_TOKEN;
+  if (process.env.APP_TOKEN != null && process.env.APP_TOKEN !== '') {
+    // Fail loudly. Silently ignoring a too-short APP_TOKEN and falling back to a
+    // generated one meant the operator's configured token simply did not work,
+    // with a 401 and no explanation anywhere.
+    if (process.env.APP_TOKEN.length < MIN_TOKEN_LEN) {
+      throw new Error(`APP_TOKEN is too short (${process.env.APP_TOKEN.length} chars, minimum ${MIN_TOKEN_LEN}). `
+        + 'Refusing to start rather than silently falling back to a generated token.');
+    }
+    return process.env.APP_TOKEN;
+  }
   if (AUTH_DISABLED) return null;
   const p = path.join(dataDir, 'app.token');
   try {
