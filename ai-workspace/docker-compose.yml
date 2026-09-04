@@ -1,0 +1,49 @@
+# Local + single-VM runner for the zero-dependency Node build.
+#   docker compose up --build -d      → http://localhost:3000
+#   docker compose logs -f web
+#   docker compose down
+#
+# The named volume is not optional housekeeping: ./data holds the JSON store AND
+# data/master.key, which decrypts every saved provider key. Recreate the
+# container without the volume and the vault is unrecoverable.
+#
+# To keep the data on a bind mount instead (easier backups on a VM):
+#   install -d -m 0700 -o 10001 -g 10001 ./data
+#   volumes: [ "./data:/app/data" ]
+# (the image runs as uid/gid 10001 — pinned in the Dockerfile for exactly this)
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-dev}
+        BUILD_VERSION: ${BUILD_VERSION:-compose}
+    image: ${IMAGE:-ai-workspace:local}
+    container_name: ai-workspace
+    ports:
+      - "${PUBLISHED_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: "3000"
+    volumes:
+      - ai-workspace-data:/app/data
+    restart: unless-stopped
+    init: true                # reap orphan processes; SIGTERM still reaches node
+    stop_grace_period: 15s    # server.js persists the store, then exits (3s cap)
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Unprivileged: no capability grants, no host paths. Outbound access the app
+    # actually needs is 443/tcp to the provider APIs + api.github.com.
+    security_opt:
+      - no-new-privileges:true

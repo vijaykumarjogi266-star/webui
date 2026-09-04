@@ -1,0 +1,39 @@
+# Render blueprint for the zero-dependency Node build.
+# Render only auto-detects this file at the REPO ROOT, so deploy it with:
+#   cp ai-workspace/render.yaml render.yaml      (paths below already assume ai-workspace/)
+# or connect the repo in the dashboard and set the Blueprint file path manually.
+#
+# PERSISTENCE WARNING: Render's free/starter plans have no persistent disk, and the
+# app stores its JSON data + data/master.key on local disk. On ephemeral filesystems
+# every deploy or restart wipes saved provider keys. Attach a Render Disk (or run the
+# Dockerfile on a VM with a volume) before letting real users save keys.
+
+services:
+  - type: web
+    name: ai-workspace
+    runtime: node
+    rootDir: ai-workspace
+    plan: starter
+    region: singapore          # closest Render region to the Mumbai user base (plan §28)
+    branch: master
+    dockerfilePath: Dockerfile # used when you switch runtime to "docker" — see note below
+    buildCommand: npm install --no-audit --no-fund --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/health/ready
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.0
+      - key: NODE_ENV
+        value: production
+      # Render injects PORT; server.js reads process.env.PORT and binds 0.0.0.0.
+      - key: ENABLE_GITHUB_WRITE_ACTIONS
+        value: "false"        # connector is read-only/public-only in this build
+    # --- To deploy with the Dockerfile instead (recommended on a paid instance type):
+    #   runtime: image
+    #   image:
+    #     source: ./ai-workspace
+    #   disk:
+    #     name: ai-workspace-data
+    #     mountPath: /app/data
+    #     sizeGB: 1

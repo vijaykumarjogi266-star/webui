@@ -27,6 +27,21 @@ PORT=8080 node server.js
 
 No `npm install`. Data persists in `./data/*.json`; master key auto-generated at `./data/master.key` (mode 0600).
 
+## Deploy
+
+The `package.json` + `Dockerfile` + PaaS manifests in this directory are the deploy layer —
+`npm start`, `npm run smoke` (boot/route/graceful-shutdown gate), `docker compose up --build`,
+plus Render/Fly/Railway/OCI-VM variants: see **[deploy/README.md](deploy/README.md)**.
+
+One rule: `/app/data` must be a persistent volume. It holds the JSON store *and*
+`master.key`, which is the only thing that decrypts saved provider keys.
+
+```bash
+docker build -t ai-workspace:local .
+docker run -d -p 3000:3000 -v ai-workspace-data:/app/data ai-workspace:local
+node scripts/smoke.js   # 8/8 green = healthy boot
+```
+
 ## API surface
 
 `/api/health/live|ready` · `/api/bootstrap` · `/api/credentials[/:id[/test|/rotate]]` · `/api/models?cred=` · `/api/models/refresh` · `/api/conversations[/:id]` · `/api/chat/stream` (SSE) · `/api/files` · `/api/github[/:id/file]` · `/api/feedback[/:id]` · `/api/usage`

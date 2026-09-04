@@ -1,0 +1,55 @@
+# Fly.io deploy for the zero-dependency Node build (Dockerfile path, because the app
+# needs a persistent volume for ./data — JSON store + master.key).
+#
+#   cd ai-workspace
+#   fly launch --no-deploy --path .        # or: fly apps create ai-workspace
+#   fly volumes create ai_workspace_data --size 1 --region bom1
+#   fly deploy --path .
+#   fly open
+#
+# `primary_region = "bom"` = Mumbai, matching the plan's latency/data-residency note (§28).
+
+app = "ai-workspace"
+primary_region = "bom"
+kill_signal = "SIGTERM"
+kill_timeout = "15s"          # server.js flushes the store on SIGTERM (3s internal cap)
+
+[build]
+  dockerfile = "Dockerfile"
+  [build.args]
+    BUILD_VERSION = "fly"
+
+[env]
+  NODE_ENV = "production"
+  PORT = "3000"
+
+[mounts]
+  source = "ai_workspace_data"
+  destination = "/app/data"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0    # raise to 2 for always-on; scale with: fly scale count 2
+
+  [http_service.concurrency]
+    type = "connections"
+    hard_limit = 100
+    soft_limit = 60
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    timeout = "5s"
+    method = "GET"
+    path = "/api/health/live"
+
+  [[http_service.checks]]
+    # /ready gates traffic: the LB keeps sending only once this answers 200.
+    grace_period = "10s"
+    interval = "60s"
+    timeout = "5s"
+    method = "GET"
+    path = "/api/health/ready"

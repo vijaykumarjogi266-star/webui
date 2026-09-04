@@ -1,0 +1,58 @@
+# AI Workspace — systemd unit for the bare-metal / OCI Compute VM path (plan §28.1:
+# "Compute VMs running Docker" or plain Node). Install to /etc/systemd/system/.
+#
+#   sudo useradd --system --home /opt/ai-workspace --shell /usr/sbin/nologin aiws
+#   sudo install -d -m 0755 -o aiws -g aiws /opt/ai-workspace
+#   sudo cp -R ai-workspace /opt/ai-workspace/ai-workspace
+#   sudo cp ai-workspace/deploy/systemd/ai-workspace.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo enable --now ai-workspace
+#   systemctl status ai-workspace && curl -s localhost:3000/api/health/ready
+
+[Unit]
+Description=AI Workspace (zero-dependency Node server)
+Documentation=https://github.com/vijaykumarjogi266-star/webui/tree/master/ai-workspace
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aiws
+Group=aiws
+WorkingDirectory=/opt/ai-workspace/ai-workspace
+ExecStartPre=/usr/bin/install -d -m 0700 -o aiws -g aiws /opt/ai-workspace/ai-workspace/data
+ExecStart=/usr/bin/node /opt/ai-workspace/ai-workspace/server.js
+Environment=NODE_ENV=production
+Environment=PORT=3000
+# Optional overrides (create the file, 0640 root:aiws): PORT=, NODE_ENV=
+EnvironmentFile=-/etc/ai-workspace/ai-workspace.env
+Restart=always
+RestartSec=2
+TimeoutStopSec=15
+
+# server.js persists on SIGTERM; give it the chance instead of SIGKILL-ing.
+KillSignal=SIGTERM
+SendSIGKILL=yes
+
+LimitNOFILE=65536
+Umask=0027
+
+# Hardening. Deliberately NOT used: MemoryDenyWriteExecute (breaks V8 JIT).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictRealtime=true
+LockPersonality=true
+SystemCallFilter=@system-service @io-event
+ReadWritePaths=/opt/ai-workspace/ai-workspace/data
+LogsDirectory=ai-workspace
+StateDirectory=ai-workspace
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,37 @@
+# Build-context hygiene for ai-workspace/Dockerfile.
+# The image copies server.js, lib/, public/, scripts/ explicitly; everything
+# below is excluded so it can never be baked in by accident.
+
+# secrets + user data (never leaves the machine)
+.env
+.env.*
+!.env.example
+data/
+
+# node / repo noise
+node_modules/
+npm-debug.log*
+package-lock.json
+.git/
+.gitignore
+*.log
+.DS_Store
+
+# test + review artifacts
+tests/
+BUILD_REVIEW.md
+README.md
+
+# standalone demo bundles (generated, not served — server serves public/ only)
+demo-ui.html
+demo-atelier.html
+
+# deploy layer: the image does not need it
+Dockerfile
+.dockerignore
+docker-compose.yml
+deploy/
+Procfile
+render.yaml
+railway.json
+fly.toml

@@ -1,0 +1,32 @@
+{
+  "name": "ai-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zero-dependency Node build of the AI Workspace MVP: BYOK encrypted key vault, SSE streaming chat, PDF/repo RAG with citations, feedback triage, usage and cost tracking.",
+  "license": "UNLICENSED",
+  "type": "commonjs",
+  "main": "server.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vijaykumarjogi266-star/webui.git",
+    "directory": "ai-workspace"
+  },
+  "engines": {
+    "node": ">=20 <23",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "demo": "node make-demo.js",
+    "smoke": "node scripts/smoke.js",
+    "check": "node --check server.js && node --check make-demo.js && node --check scripts/smoke.js && npm run smoke",
+    "docker:build": "docker build --build-arg GIT_SHA=$(git rev-parse HEAD) -t ai-workspace:local .",
+    "docker:run": "docker run --rm -p 3000:3000 -v ai-workspace-data:/app/data ai-workspace:local",
+    "compose:up": "docker compose up --build -d",
+    "compose:down": "docker compose down",
+    "compose:logs": "docker compose logs -f web"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
