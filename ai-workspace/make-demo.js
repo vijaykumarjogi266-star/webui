@@ -221,8 +221,22 @@ const SHIM = `
 `;
 
 const marker = "'use strict';";
+// The app ships CSS/JS as external files so the CSP can forbid inline script
+// (SECURITY.md V33). The demo is a single portable file, so inline them back in
+// here — the demo is opened via file:// and is never served under the CSP.
+function inlineAssets(html) {
+  return html
+    .replace(/<link rel="stylesheet" href="\/([\w.-]+\.css)">/g, (m, f) => {
+      const css = fs.readFileSync(path.join(__dirname, 'public', f), 'utf8');
+      return '<style>\n' + css + '</style>';
+    })
+    .replace(/<script src="\/([\w.-]+\.js)"[^>]*><\/script>/g, (m, f) => {
+      const js = fs.readFileSync(path.join(__dirname, 'public', f), 'utf8');
+      return '<script>\n' + js + '</script>';
+    });
+}
 function buildDemo(srcFile, outFile) {
-  const html = fs.readFileSync(path.join(__dirname, srcFile), 'utf8');
+  const html = inlineAssets(fs.readFileSync(path.join(__dirname, srcFile), 'utf8'));
   const idx = html.indexOf(marker);
   if (idx === -1) throw new Error('marker not found in ' + srcFile);
   let out = html.slice(0, idx + marker.length) + '\n' + SHIM + html.slice(idx + marker.length);

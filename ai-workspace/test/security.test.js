@@ -362,6 +362,10 @@ test('securityHeaders — CSP and hardening headers set', () => {
                    "base-uri 'none'", "form-action 'none'", "connect-src 'self'"]) {
     assert.ok(csp.includes(d), `CSP must contain ${d}`);
   }
+  // V33: scripts are external files now, so inline script must be forbidden.
+  assert.ok(csp.includes("script-src 'self'"), 'script-src must be present');
+  assert.ok(!/script-src[^;]*unsafe-inline/.test(csp), "script-src must NOT allow 'unsafe-inline'");
+  assert.ok(!/script-src[^;]*unsafe-eval/.test(csp), "script-src must NOT allow 'unsafe-eval'");
   assert.equal(set['x-content-type-options'], 'nosniff');
   assert.equal(set['x-frame-options'], 'DENY');
   assert.equal(set['referrer-policy'], 'no-referrer');

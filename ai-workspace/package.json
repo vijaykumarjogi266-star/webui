@@ -1,6 +1,6 @@
 {
   "name": "ai-workspace",
-  "version": "0.1.0",
+  "version": "1.0.0-rc.1",
   "private": true,
   "description": "Zero-dependency Node build of the AI Workspace MVP: BYOK encrypted key vault, SSE streaming chat, PDF/repo RAG with citations, feedback triage, usage and cost tracking.",
   "license": "UNLICENSED",

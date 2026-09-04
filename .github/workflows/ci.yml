@@ -1,0 +1,98 @@
+# CI for the deployable Node build. (Source of truth: this file.
+# ai-workspace/deploy/github-actions.yml is kept as a standalone copy.)
+#
+# Gates are the ones the build plan (§31.2) can actually enforce on this
+# zero-dependency demo: syntax check, boot + route smoke, image build, secret scan.
+# It deliberately does NOT pretend to run the Playwright / k6 / Testcontainers suite
+# the plan describes for the real product.
+name: ci
+
+on:
+  push:
+    branches: [master, 'arena/**']
+    paths: ['ai-workspace/**', '.github/workflows/ci.yml']
+  pull_request:
+    paths: ['ai-workspace/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ai-workspace
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          check-latest: true
+      - name: Confirm the dependency-free claim (nothing to install)
+        run: |
+          node -e "const p=require('./package.json'); const d={...p.dependencies,...p.devDependencies}; if (Object.keys(d).length) { console.error('unexpected deps:', d); process.exit(1) } console.log('zero dependencies: OK')"
+      - name: Unit + route tests (security primitives, per-route auth/CSRF gates)
+        run: npm test
+      - name: PDF parser fuzz (regression budget for the V28/V29 parser DoS)
+        run: npm run fuzz
+        env:
+          FUZZ_ITER: '4000'
+          FUZZ_MAX_MS: '400'
+      - name: Syntax check + boot/route/graceful-shutdown smoke
+        run: npm run check
+      - name: CSP must forbid inline script
+        run: |
+          node -e "
+          const {CSP}=require('./lib/security');
+          const m=/script-src([^;]*)/.exec(CSP);
+          if(!m||/unsafe-inline|unsafe-eval/.test(m[1])){console.error('CSP regression:',CSP);process.exit(1)}
+          console.log('CSP script-src OK:',m[0]);
+          "
+      - name: Secret scan (provider keys, master.key must never be committed)
+        run: |
+          pip install gitleaks 2>/dev/null || curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.18.4/gitleaks_8.18.4_linux_x64.tar.gz | tar xz -C /tmp ./gitleaks
+          (command -v gitleaks >/dev/null && gitleaks detect --source . --redact) || /tmp/gitleaks detect --source . --redact
+
+  image:
+    runs-on: ubuntu-latest
+    needs: node
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build (no push) — validates Dockerfile + .dockerignore
+        uses: docker/build-push-action@v6
+        with:
+          context: ai-workspace
+          push: false
+          load: true
+          tags: ai-workspace:ci
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            BUILD_VERSION=ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: "Container smoke — health endpoints must answer inside the image"
+        run: |
+          docker run -d --name ws -p 3000:3000 ai-workspace:ci
+          for i in $(seq 1 40); do
+            sleep 1
+            curl -fsS http://127.0.0.1:3000/api/health/live && curl -fsS http://127.0.0.1:3000/api/health/ready && break
+            [ "$i" = 40 ] && { docker logs ws; exit 1; }
+          done
+          docker inspect --format '{{json .State.Health}}' ws
+          docker rm -f ws
+      # --- Publish step stays commented until a registry is decided (plan §31.1):
+      # - uses: docker/login-action@v3
+      #   with: { registry: ghcr.io, username: ${{ github.actor }}, password: ${{ secrets.GITHUB_TOKEN }} }
+      # - uses: docker/build-push-action@v6
+      #   with: { context: ai-workspace, push: true, tags: ghcr.io/${{ github.repository }}:sha-${{ github.sha }} }
+      #
+      # --- Deploy hook (Render blue/green or `fly deploy` over SSH) belongs in an
+      #     environment-protected job with manual approval (plan §31.2). Not wired here:
+      #     this repo has no registry, runner, or target environment configured yet.

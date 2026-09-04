@@ -36,6 +36,14 @@ const checks = [
   { name: 'security headers present on /', method: 'GET', path: '/', status: 200,
     headers: (h) => /frame-ancestors 'none'/.test(h.get('content-security-policy') || '')
       && h.get('x-content-type-options') === 'nosniff' && h.get('x-frame-options') === 'DENY' },
+  { name: "CSP forbids inline script (no 'unsafe-inline' in script-src)", method: 'GET', path: '/', status: 200,
+    headers: (h) => {
+      const csp = h.get('content-security-policy') || '';
+      const m = /script-src([^;]*)/.exec(csp);
+      return !!m && !/unsafe-inline|unsafe-eval/.test(m[1]);
+    } },
+  { name: 'front-end bundle served as external JS', method: 'GET', path: '/index.js', status: 200,
+    headers: (h) => /javascript/.test(h.get('content-type') || '') },
   { name: 'GET /api/bootstrap unauthenticated → 401', method: 'GET', path: '/api/bootstrap', status: 401, json: (b) => b && b.error },
   { name: 'GET /api/credentials unauthenticated → 401 (no key metadata leak)', method: 'GET', path: '/api/credentials', status: 401 },
   { name: 'POST /api/auth/login wrong token → 401', method: 'POST', path: '/api/auth/login', body: { token: 'wrong-token-value' }, status: 401 },

@@ -15,8 +15,11 @@ the file parsers and found an unfixed decompression bomb. A **fifth pass** (§8)
 testing gaps §7 admitted to — unit tests, a fuzzer, and full route coverage — and found 4 more
 issues, including a quadratic-blowup DoS in the PDF parser. All fixed.
 
-**Test gate: 45 unit/route tests + 28 smoke checks + a PDF fuzzer, all green.**
-This document is still not a claim of "secure" — §8 lists what remains.
+A **sixth pass** (§9) removed the `'unsafe-inline'` CSP weakness that every prior pass had
+listed as the top residual risk, and found 2 more issues doing it.
+
+**Test gate: 48 unit/route tests + 30 smoke checks + a PDF fuzzer, all green.**
+This document is still not a claim of "secure" — §9 lists what remains.
 
 ---
 
@@ -310,3 +313,56 @@ Fixed since §7: unit tests (7.6), fuzzing (7.8), route coverage (7.5).
    SSE framing, usage accounting and provider error mapping remain unverified end-to-end.
    The route tests cover everything *up to* the outbound call.
 5. **One shared token, no users/roles/audit trail.**
+
+---
+
+## 9. Sixth pass — closing the CSP gap
+
+Every previous pass ended by naming `script-src 'unsafe-inline'` as the biggest remaining
+weakness: the UI was one self-contained HTML file, so the CSP could not forbid inline script —
+exactly the control that contains an XSS when a renderer is wrong. Fixing it meant extracting
+the assets, which is a refactor, which is how it produced 2 more findings.
+
+| # | Sev | Finding | Status |
+|---|-----|---------|--------|
+| V33 | **High (hardening)** | **CSP permitted inline script.** `script-src 'self' 'unsafe-inline'` meant any successful HTML injection — through the markdown renderer, a filename, a repo path — would execute. Split `public/index.html` and `public/atelier.html` into `.html` + `.css` + `.js`, replaced the remaining inline `onclick=` handlers with a delegated `[data-goto]` listener, and tightened the policy to **`script-src 'self'`** with no `unsafe-inline` and no `unsafe-eval`. `style-src` is now `'self'` plus `style-src-attr 'unsafe-inline'`, which scopes the exception to the ~80 `style=""` attributes; style attributes cannot execute code. | Fixed |
+| V34 | **High (availability)** | **Temporal-dead-zone crash in `atelier.js`.** A top-level statement (`$('#theme-toggle').onclick = ...`) ran three lines *before* `const $` was declared. Harmless while the script was inline and synchronous; once external and `defer`red, it threw `ReferenceError: Cannot access '$' before initialization` at load and **blanked the entire page**. Declarations hoisted. This is precisely the class of refactor damage no server-side test can see — found only because the new boot test executes the bundle. | Fixed |
+
+### What was added
+
+**`test/ui.boot.test.js`** — evaluates each front-end bundle in a `vm` context against a stub
+DOM and asserts it (a) runs to completion without throwing and (b) calls `/api/auth/status`
+before anything else. Plus a static assertion that no inline `<script>`, `<style>`, or
+`on*=` handler has crept back into the served files — so the CSP tightening cannot silently
+regress.
+
+Two more gates guard the policy itself: a unit assertion that `script-src` contains neither
+`unsafe-inline` nor `unsafe-eval`, and the same check in the smoke suite against a live
+response header.
+
+### Also shipped for launch
+
+- **CI is now active.** `.github/workflows/ci.yml` was previously a parked template in
+  `deploy/` that never ran. It now executes on push and PR: zero-dependency assertion, unit +
+  route tests, 4000 fuzz cases, the smoke gate, a CSP regression check, and a secret scan.
+- `LICENSE` (explicit, matching the existing `UNLICENSED` declaration) and `CHANGELOG.md`.
+
+### Residual risk — current
+
+Closed since §8: the `'unsafe-inline'` CSP weakness (V33).
+**Still outstanding, in priority order:**
+
+1. **The provider streaming path has never run against a real API key.** `streamChat`, SSE
+   framing, usage accounting and provider error mapping are unverified end-to-end; the tests
+   cover everything up to the outbound call. This is the single largest untested surface and
+   needs one manual run with a real key before you trust a production deploy.
+2. **Single shared token** — no per-user identity, roles, workspace isolation or audit trail.
+   Fine for single-tenant BYOK; a multi-user deployment needs plan §13/§25 auth.
+3. **DNS-rebinding window narrowed, not closed** — Node re-resolves inside `fetch`, so a
+   sub-millisecond flip between check and connect remains possible. Needs IP-pinning.
+4. **Rate limits are per-process and in-memory** — they neither span replicas nor survive a
+   deploy. Put a WAF or Redis in front of a multi-instance rollout.
+5. **`style-src-attr 'unsafe-inline'`** — style attributes cannot execute script, so this is a
+   defence-in-depth gap rather than a hole; removing it means moving ~80 inline styles to
+   classes.
+6. **Synchronous upload parsing** — a large PDF still blocks the event loop (plan §27).

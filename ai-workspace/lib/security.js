@@ -198,13 +198,16 @@ function rateLimit(req, name, limit, windowMs) {
 // ---------------------------------------------------------------------------
 // 5. Security headers
 // ---------------------------------------------------------------------------
-// The UI is a single self-contained HTML file (inline <script>/<style>), so a
-// nonce-less 'unsafe-inline' is required for scripts; everything else is locked
-// down: no remote origins, no framing, no plugins, no base-tag hijacking.
+// Scripts and stylesheets are external files (/index.js, /index.css), so
+// script-src can drop 'unsafe-inline' entirely — an injected <script> or
+// onerror= handler will not execute. style-src keeps 'unsafe-inline' only
+// because the UI sets ~80 style="" attributes; those cannot execute code, and
+// style-src-attr scopes the exception to attributes rather than <style> blocks.
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
-  "style-src 'self' 'unsafe-inline'",
+  "script-src 'self'",
+  "style-src 'self'",
+  "style-src-attr 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'self'",

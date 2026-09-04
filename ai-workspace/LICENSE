@@ -1,0 +1,22 @@
+Copyright (c) 2026 vijaykumarjogi266-star. All rights reserved.
+
+This software is proprietary and unlicensed for redistribution.
+
+This file exists to make the terms explicit, matching the "UNLICENSED"
+declaration in package.json and the OCI image label in the Dockerfile. No
+permission is granted to copy, modify, merge, publish, distribute, sublicense,
+or sell copies of this software.
+
+If you intend to open-source this project, replace this file with the full text
+of your chosen license (MIT, Apache-2.0, AGPL-3.0, ...) and update BOTH:
+
+  - ai-workspace/package.json      "license" field
+  - ai-workspace/Dockerfile        org.opencontainers.image.licenses label
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
