@@ -7,7 +7,7 @@ Delivered against the V3 master prompt ("Expert-Level AI Web UI Build Prompt"). 
 | `ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md` | The complete expert build plan (v1.1): 47 sections — architecture, full DB schema, provider layer, RAG pipeline, security/threat model, OCI deployment, CI/CD, expert review, scored rubric, production gates |
 | `ai-web-ui-plan/END_USER_REVIEW.md` | 4-persona end-user walkthrough with 14 findings and release recommendation |
 | `ai-workspace/` | **A running implementation** of the MVP core (zero npm dependencies): BYOK encrypted key vault, SSE streaming chat, PDF/text RAG with page citations, vision gating, GitHub repo Q&A, feedback + triage, usage/cost tracking — see `ai-workspace/BUILD_REVIEW.md` for the acceptance battery (12/12 green) and open production gaps |
-| `ai-workspace/SECURITY.md` | **Security review and hardening record**: 37 findings across seven passes (including audits of the fixes themselves), each with severity, reproduction and remedy — plus a plainly stated residual-risk list |
+| `ai-workspace/SECURITY.md` | **Security review and hardening record**: 40 findings across eight passes (including audits of the fixes themselves), each with severity, reproduction and remedy — plus a plainly stated residual-risk list |
 
 ## Start here
 
@@ -103,7 +103,7 @@ identity or audit trail.
 
 - Plan: v1.1 complete (end-user fixes absorbed — §47 changelog)
 - Demo build: accepted as reference implementation; production blockers listed in `ai-workspace/BUILD_REVIEW.md` §3
-- Security: hardened over seven passes — 37 findings, all fixed (`ai-workspace/SECURITY.md`). The build review's *"no authentication"* critical blocker is now closed for the single-tenant case; multi-user auth (roles, workspace isolation, audit trail) remains plan work
+- Security: hardened over eight passes — 40 findings, all fixed (`ai-workspace/SECURITY.md`). The build review's *"no authentication"* critical blocker is now closed for the single-tenant case; multi-user auth (roles, workspace isolation, audit trail) remains plan work
 - Tests: 48 unit + route tests, a PDF fuzzer, and a 30-check smoke gate — `npm run check`
 - CI: active at `.github/workflows/ci.yml` (tests, fuzz, smoke, CSP regression, secret scan)
 - Release: `1.0.0-rc.1` — see `ai-workspace/CHANGELOG.md`

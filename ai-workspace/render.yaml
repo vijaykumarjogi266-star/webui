@@ -29,6 +29,22 @@ services:
       # Render injects PORT; server.js reads process.env.PORT and binds 0.0.0.0.
       - key: ENABLE_GITHUB_WRITE_ACTIONS
         value: "false"        # connector is read-only/public-only in this build
+      # --- security (SECURITY.md). Render terminates TLS and forwards
+      #     X-Forwarded-For/Proto, so both of these belong on. ---
+      - key: TRUST_PROXY
+        value: "true"
+      - key: FORCE_HSTS
+        value: "true"
+      # REQUIRED. generateValue makes Render mint a random value once and keep
+      # it across deploys — read it from the dashboard after the first deploy.
+      # Without it the app generates a NEW token every boot and, on ephemeral
+      # disk, every redeploy locks users out.
+      - key: APP_TOKEN
+        generateValue: true
+      # Credential-vault key. On a plan without a persistent disk this is the
+      # ONLY way stored provider keys survive a redeploy.
+      - key: MASTER_KEY
+        sync: false           # set manually: openssl rand -hex 32
     # --- To deploy with the Dockerfile instead (recommended on a paid instance type):
     #   runtime: image
     #   image:

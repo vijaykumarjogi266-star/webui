@@ -1,1 +1,5 @@
+# APP_TOKEN is REQUIRED (gates every /api route) and TRUST_PROXY should be true
+# on any PaaS that terminates TLS. Set both as config vars, e.g.:
+#   heroku config:set APP_TOKEN="$(openssl rand -base64 32)" TRUST_PROXY=true FORCE_HSTS=true
+# Without APP_TOKEN the dyno generates a new token on every restart.
 web: node server.js

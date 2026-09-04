@@ -1,4 +1,17 @@
-# Deploy — `ai-workspace` (Node, zero dependencies)
+# Deploy runbook — AI Workspace
+
+> **Run this first, with the environment you intend to deploy with:**
+> ```bash
+> APP_TOKEN="$(openssl rand -base64 32)" MASTER_KEY="$(openssl rand -hex 32)" \
+>   TRUST_PROXY=true FORCE_HSTS=true NODE_ENV=production npm run preflight
+> ```
+> It blocks the two mistakes that only surface once users are affected: no
+> `APP_TOKEN` (a new token every boot, so a redeploy locks everyone out) and a
+> master key stored in the same volume as the ciphertext it protects.
+>
+> **Required in every deployment:** `APP_TOKEN`. **Strongly recommended:**
+> `MASTER_KEY`, plus `TRUST_PROXY=true` and `FORCE_HSTS=true` behind a proxy.
+> Full list: `.env.example`. Rationale: `../SECURITY.md`.
 
 The app is a single Node 20 process: `server.js` + `lib/` + `public/`, no `node_modules`,
 no build step, no database server. Everything below exists to make that process restart

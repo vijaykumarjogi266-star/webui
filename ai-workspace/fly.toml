@@ -22,6 +22,17 @@ kill_timeout = "15s"          # server.js flushes the store on SIGTERM (3s inter
 [env]
   NODE_ENV = "production"
   PORT = "3000"
+  # Fly's proxy terminates TLS and sets X-Forwarded-For/Proto.
+  # Without TRUST_PROXY the app rate-limits every user under the proxy IP.
+  TRUST_PROXY = "true"
+  FORCE_HSTS = "true"
+
+# --- REQUIRED SECRETS (never put these in [env] — it is committed) ---
+#   fly secrets set APP_TOKEN="$(openssl rand -base64 32)"
+#   fly secrets set MASTER_KEY="$(openssl rand -hex 32)"
+# APP_TOKEN gates every /api route; without it the server mints a new token on
+# each boot and users are locked out after a restart. MASTER_KEY encrypts the
+# credential vault and keeps that key off the data volume.
 
 [mounts]
   source = "ai_workspace_data"

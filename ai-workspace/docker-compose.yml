@@ -27,6 +27,20 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-production}
       PORT: "3000"
+      # --- security (see SECURITY.md / .env.example) ---
+      # REQUIRED in any real deployment. Without it the server generates a new
+      # token on every boot, so a redeploy silently locks everyone out.
+      # Generate: openssl rand -base64 32
+      APP_TOKEN: ${APP_TOKEN:?APP_TOKEN is required - generate with: openssl rand -base64 32}
+      # 64-hex key for the credential vault. Without it the key lives in the
+      # data volume next to the ciphertext it protects.
+      MASTER_KEY: ${MASTER_KEY:-}
+      # Set true ONLY when a trusted reverse proxy sets X-Forwarded-For,
+      # otherwise every client shares one rate-limit bucket.
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      FORCE_HSTS: ${FORCE_HSTS:-false}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-}
+      FRAME_ANCESTORS: ${FRAME_ANCESTORS:-}
     volumes:
       - ai-workspace-data:/app/data
     restart: unless-stopped

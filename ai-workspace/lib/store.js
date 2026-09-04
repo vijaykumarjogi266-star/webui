@@ -70,6 +70,24 @@ function encryptSecret(plain) {
 }
 function decryptSecret(enc) {
   if (!enc || typeof enc !== 'object' || !enc.iv || !enc.ct || !enc.tag) throw new Error('Stored credential is unreadable.');
+  // A GCM auth-tag failure here almost always means the master key changed
+  // (MASTER_KEY introduced/rotated, or data/master.key restored from a
+  // different backup) rather than corruption. Say so: the raw OpenSSL string
+  // "Unsupported state or unable to authenticate data" sends operators hunting
+  // a disk fault when the fix is to restore the old key or re-enter the API key.
+  try {
+    return decryptSecretInner(enc);
+  } catch (e) {
+    const err = new Error(
+      'This saved key could not be decrypted. It was encrypted with a different master key — '
+      + 'restore the previous MASTER_KEY (or data/master.key), or delete the credential and re-enter the API key.'
+    );
+    err.status = 409;
+    err.code = 'master_key_mismatch';
+    throw err;
+  }
+}
+function decryptSecretInner(enc) {
   const d = crypto.createDecipheriv('aes-256-gcm', MASTER, Buffer.from(enc.iv, 'base64'));
   d.setAuthTag(Buffer.from(enc.tag, 'base64'));
   return Buffer.concat([d.update(Buffer.from(enc.ct, 'base64')), d.final()]).toString('utf8');

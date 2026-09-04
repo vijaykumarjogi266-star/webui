@@ -386,6 +386,23 @@ outbound internet. The failure path is exercised constantly here while the succe
 runs — the inverse of a normal dev machine, where these would have gone unnoticed until a user
 hit a firewall.
 
+### Follow-up: deployment readiness (V39–V41)
+
+The security work all landed in the app; none of it had reached the deploy configs, which
+predated it. Verified by simulating a production deploy rather than reading the files.
+
+| # | Sev | Finding | Status |
+|---|-----|---------|--------|
+| V39 | **High (availability)** | **No deploy target passed `APP_TOKEN`.** `docker-compose.yml`, `render.yaml`, `fly.toml`, `Procfile` and the systemd env file wired only `NODE_ENV` and `PORT`. The server therefore generated a *new* token on every boot — proven by two clean boots yielding different tokens — so on an ephemeral filesystem every redeploy silently locked out every user, with the new token visible only in the startup log. All five now set or demand it; compose uses `${APP_TOKEN:?...}` so it fails fast rather than starting misconfigured. | Fixed |
+| V40 | Medium | **`TRUST_PROXY` unset everywhere**, including behind the bundled nginx config, which *does* send `X-Forwarded-For`. Confirmed: `clientIp()` returned `127.0.0.1`, so every user shared one rate-limit bucket and a single abuser would throttle the whole instance. Now set in the systemd env, render and fly configs. The nginx SSE `location` was also missing `X-Forwarded-For` entirely — streaming requests were mis-keyed even with `TRUST_PROXY=true`. | Fixed |
+| V41 | Medium | **A master-key mismatch surfaced as `"Unsupported state or unable to authenticate data"`** — OpenSSL's GCM auth-tag failure. Hit this while testing `MASTER_KEY` injection against a store written under the file key. It reads like disk corruption and sends operators debugging the wrong thing; the actual cause is almost always a changed key. Now a 409 `master_key_mismatch` naming both remedies. | Fixed |
+
+Also added: **`npm run preflight`** (`scripts/preflight.js`), which audits the environment you
+are about to deploy *with* and exits non-zero on a blocker. It fails the naive config
+(no `APP_TOKEN`), passes a correct one, and hard-blocks `FRAME_ANCESTORS=*` and
+`ALLOW_PRIVATE_EGRESS=true`. Wired into CI and the top of the deploy runbook. `.dockerignore`
+also excluded `tests/` but not `test/`, the directory the committed suite actually lives in.
+
 ### Residual risk — current
 
 Closed since §8: the `'unsafe-inline'` CSP weakness (V33).

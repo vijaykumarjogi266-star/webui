@@ -42,6 +42,13 @@ jobs:
           FUZZ_MAX_MS: '400'
       - name: Syntax check + boot/route/graceful-shutdown smoke
         run: npm run check
+      - name: Deploy preflight (blocks a config that would lock users out)
+        run: npm run preflight
+        env:
+          NODE_ENV: production
+          APP_TOKEN: ci-preflight-token-not-a-real-secret-32
+          TRUST_PROXY: 'true'
+          FORCE_HSTS: 'true'
       - name: CSP must forbid inline script
         run: |
           node -e "

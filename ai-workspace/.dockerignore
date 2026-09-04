@@ -18,6 +18,9 @@ package-lock.json
 .DS_Store
 
 # test + review artifacts
+# NOTE: the committed suite lives in test/ (singular). tests/ is the old,
+# git-ignored fixture dir — keep both so neither reaches the build context.
+test/
 tests/
 BUILD_REVIEW.md
 README.md
@@ -35,3 +38,7 @@ Procfile
 render.yaml
 railway.json
 fly.toml
+LAUNCH_REVIEW.md
+SECURITY.md
+CHANGELOG.md
+BUILD_REVIEW.md

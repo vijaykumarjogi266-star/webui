@@ -22,7 +22,7 @@ A running implementation of the MVP core from `../ai-web-ui-plan/AI_WEB_UI_BUILD
 
 - [`LAUNCH_REVIEW.md`](LAUNCH_REVIEW.md) — end-user and power-user walkthroughs against a live
   server, with a scorecard and the ten-minute live-key check to run before declaring 1.0.
-- [`SECURITY.md`](SECURITY.md) — 37 findings across seven adversarial passes.
+- [`SECURITY.md`](SECURITY.md) — 40 findings across eight passes.
 - [`BUILD_REVIEW.md`](BUILD_REVIEW.md) — acceptance battery and production gaps.
 
 ## Utility console

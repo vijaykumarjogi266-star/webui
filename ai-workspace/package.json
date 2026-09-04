@@ -27,7 +27,8 @@
     "compose:down": "docker compose down",
     "compose:logs": "docker compose logs -f web",
     "test": "node --test \"test/*.test.js\"",
-    "fuzz": "node test/pdf.fuzz.js"
+    "fuzz": "node test/pdf.fuzz.js",
+    "preflight": "node scripts/preflight.js"
   },
   "dependencies": {},
   "devDependencies": {}
