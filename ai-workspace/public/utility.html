@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Workspace — Utility</title>
+<link rel="stylesheet" href="/utility.css">
+</head>
+<body>
+<div class="wrap">
+
+<div class="head">
+  <div class="logo">AW</div>
+  <div><h1>AI Workspace Utility</h1><p class="sub">Single file, no server, no dependencies.</p></div>
+  <div class="sp"></div>
+  <button class="btn sm" id="theme">Dark</button>
+</div>
+
+<!-- server -->
+<h2>Server</h2>
+<div class="card">
+  <div class="row">
+    <span class="dot wait" id="dot"></span>
+    <strong id="stat">Checking…</strong>
+    <span class="badge" id="statb">probing</span>
+    <span class="sp" style="flex:1"></span>
+    <input type="text" id="origin" placeholder="http://localhost:3000" spellcheck="false">
+    <button class="btn sm" id="check">Check</button>
+  </div>
+  <div id="info" style="margin-top:9px;font-size:13px;color:var(--text-2)"></div>
+</div>
+
+<!-- sign in -->
+<h2>Access token</h2>
+<div class="card">
+  <div class="row">
+    <input type="password" id="token" placeholder="Token printed at first boot">
+    <button class="btn primary sm" id="login">Sign in</button>
+    <button class="btn sm" id="logout">Sign out</button>
+    <span id="authb" class="badge">unknown</span>
+  </div>
+  <div class="note">The server prints a token on first run and stores it at <code>data/app.token</code>. Signing in here sets the session cookie for the app tabs too.</div>
+</div>
+
+<!-- api tester -->
+<h2>API request</h2>
+<div class="card">
+  <div class="row">
+    <select id="m"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select>
+    <input type="text" id="path" value="/api/bootstrap" spellcheck="false" style="flex:1;min-width:260px">
+    <button class="btn primary sm" id="send">Send</button>
+    <span id="rstat" class="badge">—</span>
+  </div>
+  <div class="row" style="margin-top:9px">
+    <label>Quick:</label>
+    <button class="btn sm q" data-m="GET" data-p="/api/health/ready">health</button>
+    <button class="btn sm q" data-m="GET" data-p="/api/bootstrap">bootstrap</button>
+    <button class="btn sm q" data-m="GET" data-p="/api/credentials">credentials</button>
+    <button class="btn sm q" data-m="GET" data-p="/api/files">files</button>
+    <button class="btn sm q" data-m="GET" data-p="/api/usage">usage</button>
+    <button class="btn sm q" data-m="GET" data-p="/api/feedback">feedback</button>
+  </div>
+  <textarea id="body" rows="3" placeholder='JSON body (POST/PUT), e.g. {"type":"bug","title":"t","description":"d"}' style="margin-top:9px"></textarea>
+  <pre id="out">Response appears here.</pre>
+</div>
+
+<!-- upload helper -->
+<h2>File → base64</h2>
+<div class="card">
+  <div class="row">
+    <input type="file" id="file">
+    <button class="btn sm" id="copy">Copy JSON</button>
+    <button class="btn sm" id="up">Upload to /api/files</button>
+    <span id="fb" class="badge">no file</span>
+  </div>
+  <div class="note">Builds the <code>{name, dataBase64}</code> payload the upload route expects. Limits: 20 MB per file, PDF must be a real PDF.</div>
+  <pre id="b64" style="max-height:120px">—</pre>
+</div>
+
+<!-- links -->
+<h2>Open</h2>
+<div class="grid" id="links"></div>
+
+<!-- docs -->
+<h2>Docs</h2>
+<div class="grid">
+  <a class="tile" href="../README.md" data-doc="README.md"><div class="t">README</div><div class="d">Quick start, env vars, commands</div></a>
+  <a class="tile" href="../SECURITY.md" data-doc="SECURITY.md"><div class="t">Security <span class="badge amber">34 findings</span></div><div class="d">Six review passes, residual risk</div></a>
+  <a class="tile" href="../CHANGELOG.md" data-doc="CHANGELOG.md"><div class="t">Changelog</div><div class="d">What shipped in 1.0.0-rc.1</div></a>
+  <a class="tile" href="../BUILD_REVIEW.md" data-doc="BUILD_REVIEW.md"><div class="t">Build review</div><div class="d">Acceptance battery, open gaps</div></a>
+  <a class="tile" href="../deploy/README.md" data-doc="deploy/README.md"><div class="t">Deploy</div><div class="d">Docker, systemd, nginx, PaaS</div></a>
+  <a class="tile" href="../../ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md" data-doc="../ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md"><div class="t">Build plan</div><div class="d">47-section blueprint</div></a>
+</div>
+
+<!-- reference -->
+<h2>Reference</h2>
+<table>
+  <thead><tr><th>Route</th><th>Auth</th><th>Purpose</th></tr></thead>
+  <tbody id="routes"></tbody>
+</table>
+
+<h2>Commands</h2>
+<table>
+  <tbody>
+    <tr><td class="m">node server.js</td><td>Start on :3000 — prints the token on first run</td></tr>
+    <tr><td class="m">npm test</td><td>50 unit + route tests</td></tr>
+    <tr><td class="m">npm run fuzz</td><td>PDF parser fuzzer</td></tr>
+    <tr><td class="m">npm run smoke</td><td>31-check deploy gate</td></tr>
+    <tr><td class="m">npm run check</td><td>All of the above</td></tr>
+    <tr><td class="m">FRAME_ANCESTORS=... node server.js</td><td>Allow iframe embedding (previews)</td></tr>
+  </tbody>
+</table>
+
+<div class="note warn">Opened from <code>file://</code>, the browser may block requests to the server even when it is running. If checks fail but the server is up, open this file over HTTP instead.</div>
+
+<footer>Self-contained utility — inline styles and script, safe to copy anywhere. Not served by the app.</footer>
+</div>
+
+<script src="/utility.js" defer></script>
+</body>
+</html>

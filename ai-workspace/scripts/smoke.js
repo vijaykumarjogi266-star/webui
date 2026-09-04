@@ -46,6 +46,8 @@ const checks = [
     headers: (h) => /javascript/.test(h.get('content-type') || '') },
   { name: 'hub launcher served at /hub.html (no auth needed)', method: 'GET', path: '/hub.html', status: 200,
     headers: (h) => /text\/html/.test(h.get('content-type') || '') },
+  { name: 'utility page served at /utility.html (no auth needed)', method: 'GET', path: '/utility.html', status: 200,
+    headers: (h) => /text\/html/.test(h.get('content-type') || '') },
   { name: 'GET /api/bootstrap unauthenticated → 401', method: 'GET', path: '/api/bootstrap', status: 401, json: (b) => b && b.error },
   { name: 'GET /api/credentials unauthenticated → 401 (no key metadata leak)', method: 'GET', path: '/api/credentials', status: 401 },
   { name: 'POST /api/auth/login wrong token → 401', method: 'POST', path: '/api/auth/login', body: { token: 'wrong-token-value' }, status: 401 },

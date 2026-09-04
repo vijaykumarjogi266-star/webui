@@ -135,12 +135,12 @@ footer{margin-top:30px;padding-top:14px;border-top:1px solid var(--border);color
 <!-- docs -->
 <h2>Docs</h2>
 <div class="grid">
-  <a class="tile" href="README.md"><div class="t">README</div><div class="d">Quick start, env vars, commands</div></a>
-  <a class="tile" href="SECURITY.md"><div class="t">Security <span class="badge amber">34 findings</span></div><div class="d">Six review passes, residual risk</div></a>
-  <a class="tile" href="CHANGELOG.md"><div class="t">Changelog</div><div class="d">What shipped in 1.0.0-rc.1</div></a>
-  <a class="tile" href="BUILD_REVIEW.md"><div class="t">Build review</div><div class="d">Acceptance battery, open gaps</div></a>
-  <a class="tile" href="deploy/README.md"><div class="t">Deploy</div><div class="d">Docker, systemd, nginx, PaaS</div></a>
-  <a class="tile" href="../ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md"><div class="t">Build plan</div><div class="d">47-section blueprint</div></a>
+  <a class="tile" href="../README.md" data-doc="README.md"><div class="t">README</div><div class="d">Quick start, env vars, commands</div></a>
+  <a class="tile" href="../SECURITY.md" data-doc="SECURITY.md"><div class="t">Security <span class="badge amber">34 findings</span></div><div class="d">Six review passes, residual risk</div></a>
+  <a class="tile" href="../CHANGELOG.md" data-doc="CHANGELOG.md"><div class="t">Changelog</div><div class="d">What shipped in 1.0.0-rc.1</div></a>
+  <a class="tile" href="../BUILD_REVIEW.md" data-doc="BUILD_REVIEW.md"><div class="t">Build review</div><div class="d">Acceptance battery, open gaps</div></a>
+  <a class="tile" href="../deploy/README.md" data-doc="deploy/README.md"><div class="t">Deploy</div><div class="d">Docker, systemd, nginx, PaaS</div></a>
+  <a class="tile" href="../../ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md" data-doc="../ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md"><div class="t">Build plan</div><div class="d">47-section blueprint</div></a>
 </div>
 
 <!-- reference -->
@@ -188,6 +188,20 @@ var DEF = location.protocol === 'file:' ? 'http://localhost:3000' : location.ori
 $('origin').value = DEF;
 function base() { return ($('origin').value || DEF).trim().replace(/\/+$/, ''); }
 
+/* Docs live outside the served root. Relative paths work from file://; over
+   HTTP they would 404, so point at GitHub instead. Demo links get the same
+   treatment since demo-*.html are not served either. */
+var REPO = 'https://github.com/vijaykumarjogi266-star/webui/blob/master/ai-workspace/';
+if (location.protocol !== 'file:') {
+  Array.prototype.forEach.call(document.querySelectorAll('a[data-doc]'), function (a) {
+    var rel = a.dataset.doc;
+    a.href = rel.indexOf('../') === 0
+      ? REPO.replace('/ai-workspace/', '/') + rel.slice(3)
+      : REPO + rel;
+    a.target = '_blank'; a.rel = 'noopener';
+  });
+}
+
 /* links */
 var LINKS = [
   ['/', 'Chat UI', 'Main workspace — chat, RAG, repos'],
@@ -195,13 +209,19 @@ var LINKS = [
   ['/hub.html', 'Hub page', 'Served launcher (needs server)'],
   ['/api/health/ready', 'Readiness', 'JSON counters, no token']
 ];
+function demoTile(file, label) {
+  var served = location.protocol !== 'file:';
+  var href = served ? REPO + file : file;
+  var note = served ? 'Single-file demo — opens on GitHub' : 'Mock backend, no server needed';
+  return '<a class="tile"' + (served ? ' target="_blank" rel="noopener"' : '') + ' href="' + href + '">' +
+    '<div class="t">' + label + ' <span class="badge green">offline</span></div><div class="d">' + note + '</div></a>';
+}
 function paintLinks() {
   $('links').innerHTML = LINKS.map(function (l) {
     return '<a class="tile" target="_blank" rel="noopener" href="' + base() + l[0] + '">' +
       '<div class="t">' + l[1] + '</div><div class="d">' + l[2] + '</div></a>';
   }).join('') +
-  '<a class="tile" href="demo-ui.html"><div class="t">Chat demo <span class="badge green">offline</span></div><div class="d">Mock backend, no server</div></a>' +
-  '<a class="tile" href="demo-atelier.html"><div class="t">Atelier demo <span class="badge green">offline</span></div><div class="d">Mock backend, no server</div></a>';
+  demoTile('demo-ui.html', 'Chat demo') + demoTile('demo-atelier.html', 'Atelier demo');
 }
 
 /* routes table */
@@ -316,6 +336,8 @@ $('up').onclick = function () {
 };
 
 probe();
+
+
 </script>
 </body>
 </html>
