@@ -7,6 +7,7 @@ Delivered against the V3 master prompt ("Expert-Level AI Web UI Build Prompt"). 
 | `ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md` | The complete expert build plan (v1.1): 47 sections — architecture, full DB schema, provider layer, RAG pipeline, security/threat model, OCI deployment, CI/CD, expert review, scored rubric, production gates |
 | `ai-web-ui-plan/END_USER_REVIEW.md` | 4-persona end-user walkthrough with 14 findings and release recommendation |
 | `ai-workspace/` | **A running implementation** of the MVP core (zero npm dependencies): BYOK encrypted key vault, SSE streaming chat, PDF/text RAG with page citations, vision gating, GitHub repo Q&A, feedback + triage, usage/cost tracking — see `ai-workspace/BUILD_REVIEW.md` for the acceptance battery (12/12 green) and open production gaps |
+| `ai-workspace/SECURITY.md` | **Security review and hardening record**: 32 findings across five adversarial passes (including audits of the fixes themselves), each with severity, reproduction and remedy — plus a plainly stated residual-risk list |
 
 ## Quick start (the app)
 
@@ -15,7 +16,26 @@ cd ai-workspace
 node server.js        # → http://localhost:3000 (Node 20, no npm install)
 ```
 
-Then add an OpenRouter/Groq key in Provider settings (or complete the first-run wizard), chat, upload a PDF, and ask about it. (Note: `ai-workspace/tests/` is git-ignored, so the sample `meridian-q3.pdf` mentioned in the review docs is a local fixture — use any text PDF.)
+**The app is gated by an access token.** On first boot the server generates one, prints it to
+the console, and stores it at `data/app.token` (mode 0600). Paste it into the unlock prompt in
+the UI, or send it as `Authorization: Bearer <token>`. Set `APP_TOKEN` to choose your own
+(minimum 16 characters — a shorter value aborts startup rather than being silently ignored),
+or `AUTH_DISABLED=true` on a trusted loopback dev box.
+
+Then add an OpenRouter/Groq key in Provider settings (or complete the first-run wizard), chat,
+upload a PDF, and ask about it. (Note: `ai-workspace/tests/` is git-ignored, so the sample
+`meridian-q3.pdf` mentioned in the review docs is a local fixture — use any text PDF. The
+committed suites live in `ai-workspace/test/`.)
+
+### Tests
+
+```bash
+cd ai-workspace
+npm test        # 45 unit + route tests (security primitives; every route's auth/CSRF gate)
+npm run fuzz    # PDF parser fuzzer (deterministic seed; found a quadratic-blowup DoS)
+npm run smoke   # 28-check deploy gate, 21 of them security assertions
+npm run check   # all of the above
+```
 
 ## Deploy
 
@@ -25,6 +45,32 @@ Then add an OpenRouter/Groq key in Provider settings (or complete the first-run 
 nginx site for an OCI compute VM, a `data/` backup-restore script, and a CI workflow.
 Details and the persistence caveat: `ai-workspace/deploy/README.md`.
 
+
+## Security
+
+`ai-workspace/` was reviewed as an attacker and hardened over five passes — each one also
+auditing the previous pass's fixes. **32 findings, all fixed**, recorded with reproductions in
+[`ai-workspace/SECURITY.md`](ai-workspace/SECURITY.md):
+
+- **Pass 1 (14)** — no authentication at all, SSRF via custom provider base URLs and image
+  attachments, CSRF, GitHub path injection, a markdown-renderer XSS, missing rate limits and
+  security headers, path traversal, secret hygiene
+- **Pass 2 (7)** — defects *in the hardening itself*: a CSRF bypass via `X-Forwarded-Host` and
+  an SSRF bypass via IPv4-mapped IPv6 both fully defeated controls added in pass 1
+- **Pass 3 (6)** — availability and correctness: the new brute-force limiter locked the
+  legitimate owner out of their own workspace, and the login gate never actually rendered
+- **Pass 4 (1)** — a PDF decompression bomb (80 KB inflating to 80 MB)
+- **Pass 5 (4)** — found by building the tests pass 4 admitted were missing, including a
+  quadratic-blowup DoS in the PDF object scanner (1262 ms → 0 ms)
+
+Controls now in `lib/security.js`: shared-token auth with an HMAC session cookie, origin-bound
+CSRF, a DNS-resolving SSRF allowlist, per-IP/per-route rate limiting, a full security-header
+set with CSP, strict input validation, and traversal/symlink-safe static serving.
+
+**This is not a claim of "secure."** `SECURITY.md` §8 lists what remains — notably
+`script-src 'unsafe-inline'` (the UI is one self-contained HTML file), a narrowed-but-open
+DNS-rebinding window, in-memory rate limits that don't span replicas, and the fact that the
+provider streaming path has never been exercised against a real API key.
 
 ## Document map
 
@@ -38,6 +84,8 @@ Details and the persistence caveat: `ai-workspace/deploy/README.md`.
 
 - Plan: v1.1 complete (end-user fixes absorbed — §47 changelog)
 - Demo build: accepted as reference implementation; production blockers listed in `ai-workspace/BUILD_REVIEW.md` §3
+- Security: hardened over five adversarial passes — 32 findings, all fixed (`ai-workspace/SECURITY.md`). The build review's *"no authentication"* critical blocker is now closed for the single-tenant case; multi-user auth (roles, workspace isolation, audit trail) remains plan work
+- Tests: 45 unit + route tests, a PDF fuzzer, and a 28-check smoke gate — `npm run check`
 - Deploy layer: added — Node manifests + Docker + VM/PaaS runbook in `ai-workspace/deploy/`
 - GitHub: pushed to `https://github.com/vijaykumarjogi266-star/webui` (the earlier "no remote/credentials in this environment" note is obsolete)
 

@@ -3,6 +3,13 @@
 **Method:** code review + a 12-point automated acceptance battery against the live server + manual API walkthroughs
 **Verdict:** ✅ **Accepted as a working reference implementation of the MVP core.** Not production-ready by design — every gap maps to a section of the production plan that closes it.
 
+> **Update — security hardening.** This review predates the adversarial security work recorded
+> in [`SECURITY.md`](SECURITY.md): 32 findings across five passes, all fixed, plus a committed
+> test suite (`npm run check` → 45 unit/route tests, a PDF fuzzer, 28 smoke checks). The
+> *"no authentication"* blocker in §3 below is now partially closed — annotated inline. Other
+> §3 gaps (async upload pipeline, KMS envelope encryption, embeddings, OCR, Postgres) are
+> unchanged. Read the two documents together.
+
 ---
 
 ## 1. What was built and proven (evidence)
@@ -43,11 +50,15 @@ Format per master prompt §44. All are **by-design demo simplifications** — ea
 ```text
 Issue: No authentication, roles, or workspace isolation — single-user tool
 Severity: Critical (for production) / Acceptable (single-machine demo)
+Status: PARTIALLY CLOSED — see SECURITY.md. A shared access-token gate (HMAC session
+  cookie, origin-bound CSRF, per-route rate limiting) now protects every /api route, so the
+  app is no longer wide open to anyone who can reach the port. Roles, per-user identity,
+  workspace isolation and an audit trail are still NOT implemented.
 Why it matters: Every production gate in plan §22/§46 depends on AuthN+AuthZ; multi-tenancy without it is a data-leak machine.
 Recommended fix: Implement plan M1 (Auth.js + RBAC + workspace scope helper + IDOR battery) before any shared deployment.
 Owner: Backend
 Acceptance test: Journey 6 cross-tenant matrix green.
-Production blocker: Yes
+Production blocker: Yes for multi-tenant. Single-tenant BYOK deployments are now defensible behind TLS.
 
 Issue: Local master key file instead of OCI KMS envelope encryption
 Severity: High (prod) / Acceptable (demo, mode-0600 key, AES-256-GCM)
