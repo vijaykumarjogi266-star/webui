@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Workspace — Offline UI Demo</title>
+<style>
+:root {
+  --paper:#f7f5f0; --card:#fffdf9; --raised:#f2efe7;
+  --ink:#22261f; --ink-2:#5d6355; --ink-3:#949a8c;
+  --line:#e4e0d4; --line-strong:#cfc9b8;
+  --accent:#0e7a6c; --accent-ink:#0a5c51; --accent-weak:#e2efec;
+  --danger:#b3402f; --danger-weak:#f7e8e4; --warn:#94660f; --warn-weak:#f6eeda; --info:#33608f; --info-weak:#e6edf5;
+  --serif: Georgia, 'Iowan Old Style', 'Times New Roman', serif;
+  --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --shadow: 0 1px 2px rgba(40,36,24,.05), 0 2px 8px rgba(40,36,24,.05);
+}
+html.dark {
+  --paper:#171512; --card:#1e1c18; --raised:#26231d;
+  --ink:#eae6da; --ink-2:#a9a494; --ink-3:#726d5f;
+  --line:#2e2b23; --line-strong:#3d3930;
+  --accent:#3cb4a2; --accent-ink:#63cdbd; --accent-weak:#123530;
+  --danger:#e07a67; --danger-weak:#3a1f19; --warn:#d9a24a; --warn-weak:#33280f; --info:#7fa9d6; --info-weak:#182838;
+  --shadow: 0 1px 3px rgba(0,0,0,.45);
+}
+* { box-sizing: border-box; }
+html, body { margin:0; }
+body { font: 14.5px/1.6 var(--sans); background: var(--paper); color: var(--ink); }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent-ink); }
+::selection { background: var(--accent-weak); }
+/* ---------- top bar ---------- */
+header { display:flex; align-items:center; gap:26px; padding:14px 28px; border-bottom:1px solid var(--line); background:var(--card); position:sticky; top:0; z-index:40; }
+.brand { font-family:var(--serif); font-size:19px; font-weight:700; letter-spacing:.01em; }
+.brand em { font-style:italic; color:var(--accent-ink); font-weight:600; }
+nav { display:flex; gap:4px; flex:1; overflow-x:auto; }
+.tab { border:none; background:none; padding:8px 13px; cursor:pointer; color:var(--ink-2); font-size:12.5px; font-weight:600; text-transform:uppercase; letter-spacing:.09em; border-bottom:2px solid transparent; margin-bottom:-15px; white-space:nowrap; }
+.tab:hover { color:var(--ink); }
+.tab.active { color:var(--accent-ink); border-bottom-color:var(--accent); }
+.hdr-right { display:flex; align-items:center; gap:12px; }
+.status-dot { font-size:12px; color:var(--ink-3); display:flex; align-items:center; gap:6px; }
+.status-dot::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--line-strong); }
+.status-dot.on::before { background:var(--accent); }
+.icon-btn { border:1px solid var(--line); background:var(--card); border-radius:8px; padding:6px 10px; cursor:pointer; font-size:13px; color:var(--ink-2); }
+.icon-btn:hover { background:var(--raised); color:var(--ink); }
+/* ---------- layout ---------- */
+.view { max-width:1180px; margin:0 auto; padding:30px 28px 80px; }
+h1.page-title { font-family:var(--serif); font-size:30px; font-weight:700; margin:0 0 4px; letter-spacing:-.01em; }
+.page-sub { color:var(--ink-2); margin:0 0 26px; max-width:640px; }
+.card { background:var(--card); border:1px solid var(--line); border-radius:10px; box-shadow:var(--shadow); padding:20px 22px; margin-bottom:18px; }
+h2.card-title { font-family:var(--serif); font-size:18px; margin:0 0 12px; }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+.row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.row.between { justify-content:space-between; }
+/* ---------- controls ---------- */
+.btn { border:1px solid var(--line-strong); background:var(--card); color:var(--ink); border-radius:8px; padding:8px 16px; cursor:pointer; font-weight:600; font-size:13.5px; }
+.btn:hover { background:var(--raised); }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+.btn.primary:hover { background:var(--accent-ink); }
+.btn.ghost { border-color:transparent; background:transparent; color:var(--ink-2); }
+.btn.ghost:hover { background:var(--raised); color:var(--ink); }
+.btn.danger-ghost { border-color:transparent; background:transparent; color:var(--danger); }
+.btn.sm { padding:4px 10px; font-size:12.5px; border-radius:6px; }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+.input { width:100%; padding:9px 12px; border-radius:8px; border:1px solid var(--line-strong); background:var(--card); outline:none; }
+.input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-weak); }
+label.lbl { display:block; font-size:11.5px; font-weight:700; color:var(--ink-2); text-transform:uppercase; letter-spacing:.08em; margin:14px 0 5px; }
+.pill { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; border:1px solid var(--line-strong); color:var(--ink-2); border-radius:999px; padding:2.5px 10px; background:var(--card); white-space:nowrap; }
+.pill.green { color:var(--accent-ink); border-color:var(--accent); background:var(--accent-weak); }
+.pill.amber { color:var(--warn); border-color:transparent; background:var(--warn-weak); }
+.pill.red { color:var(--danger); border-color:transparent; background:var(--danger-weak); }
+.pill.blue { color:var(--info); border-color:transparent; background:var(--info-weak); }
+table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
+.tbl th { text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-3); font-weight:700; padding:9px 10px; border-bottom:1px solid var(--line-strong); }
+.tbl td { padding:11px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+.tbl tr:last-child td { border-bottom:none; }
+.empty { text-align:center; color:var(--ink-2); padding:44px 16px; }
+.empty .serif { font-family:var(--serif); font-size:19px; color:var(--ink); margin-bottom:6px; }
+/* ---------- chat ---------- */
+.chat-grid { display:grid; grid-template-columns:1fr 292px; gap:26px; align-items:start; }
+.convo-bar { display:flex; align-items:center; gap:10px; margin-bottom:18px; position:relative; }
+.convo-title-btn { font-family:var(--serif); font-size:22px; font-weight:700; border:none; background:none; cursor:pointer; padding:0; color:var(--ink); display:flex; align-items:center; gap:8px; }
+.convo-title-btn .caret { font-size:12px; color:var(--ink-3); }
+.convo-menu { position:absolute; top:calc(100% + 8px); left:0; background:var(--card); border:1px solid var(--line-strong); border-radius:10px; box-shadow:var(--shadow); min-width:320px; max-height:300px; overflow-y:auto; z-index:50; padding:6px; }
+.convo-menu .item { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 12px; border-radius:7px; cursor:pointer; font-size:13.5px; }
+.convo-menu .item:hover { background:var(--raised); }
+.convo-menu .item.active { background:var(--accent-weak); color:var(--accent-ink); font-weight:600; }
+.convo-menu .del { border:none; background:none; color:var(--ink-3); cursor:pointer; visibility:hidden; }
+.convo-menu .item:hover .del { visibility:visible; }
+.thread { border-top:1px solid var(--line-strong); }
+.entry { padding:22px 0; border-bottom:1px solid var(--line); }
+.entry .role { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; color:var(--ink-3); margin-bottom:8px; }
+.entry .role b { color:var(--accent-ink); }
+.entry.user .body { background:var(--raised); border-radius:10px; padding:13px 16px; }
+.entry .body { overflow-wrap:break-word; }
+.entry .body pre { background:var(--raised); border:1px solid var(--line); border-radius:8px; padding:12px; overflow-x:auto; font-family:var(--mono); font-size:12.5px; margin:10px 0; }
+.entry .body code.inline { background:var(--raised); border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-family:var(--mono); font-size:12.5px; }
+.entry .body h1,.entry .body h2,.entry .body h3 { font-family:var(--serif); margin:14px 0 6px; }
+.entry .body h1{font-size:20px}.entry .body h2{font-size:17px}.entry .body h3{font-size:15px}
+.entry .body p { margin:8px 0; } .entry .body ul,.entry .body ol { margin:8px 0; padding-left:22px; }
+.entry .body blockquote { border-left:3px solid var(--line-strong); margin:10px 0; padding:2px 14px; color:var(--ink-2); font-style:italic; }
+.entry.failed .body { color:var(--danger); }
+.meta-line { display:flex; gap:7px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+.cite { font-size:11.5px; font-weight:600; color:var(--info); background:var(--info-weak); border-radius:999px; padding:2.5px 10px; }
+.code-head { display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--ink-3); padding:5px 12px; border:1px solid var(--line); border-bottom:none; border-radius:8px 8px 0 0; background:var(--raised); font-family:var(--mono); margin-top:10px; }
+.code-head + pre { border-radius:0 0 8px 8px; margin-top:0; }
+.cursor { display:inline-block; width:8px; height:16px; background:var(--accent); animation:blink 1s infinite; vertical-align:-3px; border-radius:2px; }
+@keyframes blink { 50% { opacity:.15; } }
+/* composer */
+.composer { position:sticky; bottom:14px; margin-top:22px; background:var(--card); border:1px solid var(--line-strong); border-radius:14px; box-shadow:var(--shadow); padding:12px 14px; }
+.attach-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:9px; }
+.chip { display:inline-flex; align-items:center; gap:6px; font-size:12.5px; border:1px solid var(--line-strong); background:var(--raised); border-radius:999px; padding:3.5px 7px 3.5px 12px; font-weight:600; }
+.chip button { border:none; background:none; cursor:pointer; color:var(--ink-3); font-size:13px; padding:0 3px; }
+.chip.on { border-color:var(--accent); background:var(--accent-weak); color:var(--accent-ink); }
+.composer-box { display:flex; gap:9px; align-items:flex-end; }
+.composer-box textarea { flex:1; border:none; outline:none; background:transparent; resize:none; min-height:46px; max-height:200px; font-size:14.5px; line-height:1.55; padding:4px 2px; }
+.send-btn { width:42px; height:42px; border-radius:50%; border:none; background:var(--accent); color:#fff; font-size:17px; cursor:pointer; flex:none; }
+.send-btn:hover { background:var(--accent-ink); }
+.send-btn.stop { background:var(--danger); }
+.vision-warn { background:var(--warn-weak); color:var(--warn); border-radius:8px; padding:9px 13px; font-size:13px; margin-bottom:9px; display:flex; gap:10px; align-items:center; justify-content:space-between; }
+.picker { position:relative; }
+.picker-menu { position:absolute; bottom:calc(100% + 8px); left:0; background:var(--card); border:1px solid var(--line-strong); border-radius:10px; box-shadow:var(--shadow); padding:8px; min-width:300px; max-height:280px; overflow-y:auto; z-index:60; }
+.picker-item { display:flex; gap:9px; align-items:center; padding:7px 9px; border-radius:7px; cursor:pointer; font-size:13.5px; }
+.picker-item:hover { background:var(--raised); }
+/* rail */
+.rail .card { padding:16px 18px; }
+.rail h3 { font-size:11px; text-transform:uppercase; letter-spacing:.09em; color:var(--ink-3); margin:0 0 10px; font-weight:700; }
+.model-name { font-family:var(--serif); font-size:16px; font-weight:700; margin-bottom:8px; word-break:break-all; }
+.kv { display:flex; justify-content:space-between; font-size:12.5px; color:var(--ink-2); padding:3.5px 0; border-bottom:1px dashed var(--line); }
+.kv:last-child { border-bottom:none; }
+.rail-item { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:13px; padding:6px 0; border-bottom:1px dashed var(--line); }
+.rail-item:last-child { border-bottom:none; }
+.rail-item button { border:none; background:none; color:var(--ink-3); cursor:pointer; }
+/* toasts & modal */
+#toasts { position:fixed; bottom:20px; left:50%; transform:translateX(-50%); display:flex; flex-direction:column; gap:8px; z-index:200; align-items:center; }
+.toast { background:var(--ink); color:var(--paper); padding:10px 18px; border-radius:999px; font-size:13px; font-weight:600; box-shadow:var(--shadow); max-width:480px; }
+.toast.err { background:var(--danger); color:#fff; }
+.modal-back { position:fixed; inset:0; background:rgba(25,22,15,.55); display:grid; place-items:center; z-index:100; padding:20px; }
+.modal { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:30px; width:100%; max-width:540px; box-shadow:var(--shadow); max-height:90vh; overflow-y:auto; }
+.modal h1, .modal h2 { font-family:var(--serif); }
+.steps { display:flex; gap:6px; margin-bottom:20px; }
+.steps .dot { width:30px; height:3px; border-radius:2px; background:var(--line-strong); }
+.steps .dot.on { background:var(--accent); }
+.file-drop { border:2px dashed var(--line-strong); border-radius:10px; padding:30px; text-align:center; color:var(--ink-2); cursor:pointer; }
+.file-drop:hover, .file-drop.over { border-color:var(--accent); background:var(--accent-weak); color:var(--accent-ink); }
+.file-glyph { width:34px; height:34px; border-radius:8px; background:var(--raised); border:1px solid var(--line); display:inline-grid; place-items:center; font-size:15px; flex:none; }
+@media (max-width:980px) { .chat-grid { grid-template-columns:1fr; } .rail { display:none; } .grid2 { grid-template-columns:1fr; } header { gap:12px; padding:12px 16px; } .view { padding:22px 16px 70px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">AI Workspace <em>atelier</em></div>
+  <nav id="nav"></nav>
+  <div class="hdr-right">
+    <span class="status-dot" id="conn-dot">no provider</span>
+    <button class="icon-btn" id="theme-toggle">◐ Theme</button>
+  </div>
+</header>
+<main id="main"></main>
+<div id="toasts"></div>
+<div id="modal-root"></div>
+<script>
+'use strict';
+
+/* ================= storage guards (sandboxed iframes deny localStorage) ================= */
+(function () {
+  function memStorage() {
+    const store = {};
+    return {
+      getItem: (k) => (k in store ? store[k] : null),
+      setItem: (k, v) => { store[k] = String(v); },
+      removeItem: (k) => { delete store[k]; },
+      clear: () => { for (const k in store) delete store[k]; },
+      get length() { return Object.keys(store).length; },
+      key: (i) => Object.keys(store)[i] || null,
+    };
+  }
+  try { localStorage.setItem('__t', '1'); localStorage.removeItem('__t'); }
+  catch { Object.defineProperty(window, 'localStorage', { value: memStorage(), configurable: true }); }
+  try { sessionStorage.setItem('__t', '1'); sessionStorage.removeItem('__t'); }
+  catch { Object.defineProperty(window, 'sessionStorage', { value: memStorage(), configurable: true }); }
+})();
+/* ================= OFFLINE DEMO SHIM — mock backend, injected for demo-ui.html ================= */
+(function () {
+  const now = new Date().toISOString();
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  try { if (localStorage.getItem('selCred') !== 'demo-cred') { localStorage.removeItem('selCred'); localStorage.removeItem('selModel'); } } catch {}
+
+  const CRED = { id: 'demo-cred', provider: 'openrouter', displayName: null, baseUrl: null, masked: 'sk-or-\u2026demo', status: 'connected', lastTestedAt: now, lastError: null };
+  const MODELS = [
+    { id: 'demo/meridian-chat', name: 'Meridian Chat (demo)', vision: false, context: 128000, inputCostPerMtok: 0.15, outputCostPerMtok: 0.6, source: 'provider' },
+    { id: 'demo/vision-pro', name: 'Vision Pro (demo)', vision: true, context: 128000, inputCostPerMtok: 2.5, outputCostPerMtok: 10, source: 'provider' },
+    { id: 'demo/flash-free:free', name: 'Flash Free (demo)', vision: false, context: 32000, inputCostPerMtok: 0, outputCostPerMtok: 0, source: 'provider' },
+  ];
+  let convSeq = 3;
+  const CONVOS = [
+    { id: 'c1', title: 'Meridian Q3 report Q&A', updatedAt: now, model: 'demo/meridian-chat' },
+    { id: 'c2', title: 'Office policy questions', updatedAt: now, model: 'demo/flash-free:free' },
+  ];
+  const MSGS = {
+    c1: [
+      { id: 'm1', role: 'user', content: 'How much did Meridian revenue grow in Q3?', fileIds: ['f1'], repoIds: [], images: [], at: now },
+      { id: 'm2', role: 'assistant', model: 'demo/meridian-chat', status: 'complete', inputTokens: 412, outputTokens: 88,
+        content: 'Meridian\u2019s revenue grew **23 percent** in Q3, reaching \u20b94.2 crore.\n\nKey points from the report:\n- Growth is driven by the Mumbai region expansion\n- The same document approves the hiring plan (see page 2)\n\n```text\nQ3 revenue: \u20b94.2 crore  (+23% QoQ)\n```',
+        citations: [{ source: 'meridian-q3.pdf', page: 1, type: 'file' }], at: now },
+      { id: 'm3', role: 'user', content: 'What does the hiring plan say?', fileIds: ['f1'], repoIds: [], images: [], at: now },
+      { id: 'm4', role: 'assistant', model: 'demo/meridian-chat', status: 'complete', inputTokens: 655, outputTokens: 61,
+        content: 'The hiring plan approves **12 new engineers in Chennai** [meridian-q3.pdf \u00b7 p.2]. The document does not specify start dates or compensation bands \u2014 for anything beyond that, I could not find this in the uploaded document.',
+        citations: [{ source: 'meridian-q3.pdf', page: 2, type: 'file' }], at: now },
+    ],
+    c2: [
+      { id: 'm5', role: 'user', content: 'How many remote days are allowed?', fileIds: ['f2'], repoIds: [], images: [], at: now },
+      { id: 'm6', role: 'assistant', model: 'demo/flash-free:free', status: 'complete', inputTokens: 240, outputTokens: 45,
+        content: 'Remote work is allowed **two days per week**, and there is a laptop stipend of \u20b960,000 per year [notes.md \u00b7 p.1].',
+        citations: [{ source: 'notes.md', page: 1, type: 'file' }], at: now },
+    ],
+  };
+  let FILES = [
+    { id: 'f1', name: 'meridian-q3.pdf', kind: 'pdf', byteSize: 742, indexStatus: 'ready', chunks: 2, pages: 2, error: null, extraction: 'native', at: now },
+    { id: 'f2', name: 'notes.md', kind: 'text', byteSize: 163, indexStatus: 'ready', chunks: 1, pages: 1, error: null, extraction: 'native', at: now },
+    { id: 'f3', name: 'policy.csv', kind: 'text', byteSize: 38, indexStatus: 'ready', chunks: 1, pages: 1, error: null, extraction: 'native', at: now },
+  ];
+  let REPOS = [{ id: 'r1', owner: 'octocat', repo: 'Hello-World', defaultBranch: 'master', description: 'My first repository on GitHub! (demo)', status: 'ready', filesIndexed: 1, filesSkipped: 0, skippedReasons: [], headSha: '7fd1a60', chunkCount: 1, fileList: ['README'], at: now }];
+  const REPO_FILES = { r1: { README: 'Hello World!\n' } };
+  let FEEDBACK = [
+    { id: 'fb1', type: 'bug', priority: 'high', status: 'triaged', title: 'Model list slow to load on mobile', description: 'The model dropdown takes a few seconds on a phone connection.', pageUrl: '/chat', consent: true, browser: 'demo-browser', history: [{ status: 'new', at: now, by: 'system' }, { status: 'triaged', at: now, by: 'admin' }], createdAt: now },
+    { id: 'fb2', type: 'feature_request', priority: 'medium', status: 'new', title: 'Export conversations to Markdown', description: 'Would love a one-click export for sharing answers with my team.', pageUrl: '/chat', consent: false, browser: null, history: [{ status: 'new', at: now, by: 'system' }], createdAt: now },
+  ];
+  const USAGE = {
+    totals: { calls: 14, input: 6210, output: 1180, cost: 0.0041 },
+    perConversation: [
+      { id: 'c1', title: 'Meridian Q3 report Q&A', calls: 9, input: 4980, output: 940, cost: 0.0035, models: ['demo/meridian-chat'] },
+      { id: 'c2', title: 'Office policy questions', calls: 5, input: 1230, output: 240, cost: 0.0006, models: ['demo/flash-free:free'] },
+    ],
+  };
+
+  const json = (status, obj) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
+  const body = async (opts) => { try { return JSON.parse(opts && opts.body || '{}'); } catch { return {}; } };
+
+  function buildReply(payload) {
+    if ((payload.repoIds || []).length) {
+      return 'Looking at the connected repository, the **README** declares the project intent:\n\n```text\nHello World!\n```\n\nThis is a mock offline demo \u2014 with a live server and real key, the answer is grounded in the indexed files and cites exact paths.';
+    }
+    if ((payload.fileIds || []).length) {
+      const names = payload.fileIds.map((id) => (FILES.find((f) => f.id === id) || {}).name || 'file');
+      return 'Based on **' + names[0] + '**: Meridian\u2019s revenue grew **23 percent** to \u20b94.2 crore in Q3, and the hiring plan approves 12 new engineers in Chennai.\n\n> Mock demo answer \u2014 the live build retrieves real chunks with BM25 and cites the exact pages.';
+    }
+    return 'This is the **offline UI demo** running on mock data \u2014 no server, no API key.\n\nEverything you see is interactive:\n- Streaming responses (simulated token-by-token)\n- Attach files or repos with **\uff0b Attach** and see citations\n- Attach an image to a text-only model to see the vision gate\n- Try **Stop** mid-stream, triage feedback, check Usage\n\nFor the real thing, run "node server.js" in the project.';
+  }
+
+  window.fetch = async function (url, opts = {}) {
+    const method = (opts.method || 'GET').toUpperCase();
+    const path = String(url).replace(/^https?:\/\/[^/]+/, '');
+    await sleep(50);
+
+    if (path === '/api/bootstrap') return json(200, { credentials: [CRED], conversations: CONVOS, files: FILES, repos: REPOS, feedbackCount: FEEDBACK.length, systemPromptDefault: '' });
+    if (path === '/api/health/live') return json(200, { ok: true });
+    if (path === '/api/credentials' && method === 'GET') return json(200, { credentials: [CRED] });
+    if (/^\/api\/credentials\/demo-cred\/test$/.test(path)) return json(200, { status: 'connected', modelCount: MODELS.length });
+    if (/^\/api\/credentials\/demo-cred\/rotate$/.test(path)) return json(200, { credential: { ...CRED, status: 'not_tested' } });
+    if (/^\/api\/credentials\//.test(path) && method === 'DELETE') return json(200, { ok: true });
+    if (path.startsWith('/api/models?cred=')) return json(200, { provider: 'openrouter', models: MODELS });
+    if (path === '/api/models/refresh') return json(200, { count: MODELS.length });
+
+    if (path === '/api/conversations' && method === 'GET') return json(200, { conversations: CONVOS });
+    if (path === '/api/conversations' && method === 'POST') {
+      const c = { id: 'c' + (convSeq++), title: 'New chat', createdAt: now, updatedAt: now };
+      CONVOS.unshift(c); MSGS[c.id] = [];
+      return json(201, { conversation: c });
+    }
+    let m = path.match(/^\/api\/conversations\/([\w-]+)$/);
+    if (m && method === 'GET') {
+      const c = CONVOS.find((x) => x.id === m[1]);
+      return c ? json(200, { conversation: c, messages: MSGS[c.id] || [] }) : json(404, { error: { message: 'Conversation not found' } });
+    }
+    if (m && method === 'DELETE') {
+      const i = CONVOS.findIndex((x) => x.id === m[1]); if (i >= 0) CONVOS.splice(i, 1); delete MSGS[m[1]];
+      return json(200, { ok: true });
+    }
+
+    if (path === '/api/chat/stream' && method === 'POST') {
+      const payload = await body(opts);
+      const info = MODELS.find((x) => x.id === payload.model);
+      if ((payload.images || []).length && info && info.vision === false) {
+        return json(400, { error: { code: 'vision_unsupported', message: 'This model cannot view images. Choose a vision-capable model \u2014 the list is filterable in the selector.' } });
+      }
+      const cites = (payload.fileIds || []).map((id) => { const f = FILES.find((x) => x.id === id); return f ? { source: f.name, page: 1, type: 'file' } : null; }).filter(Boolean)
+        .concat((payload.repoIds || []).map(() => ({ source: 'octocat/Hello-World', page: 'README', type: 'repo' })));
+      const text = buildReply(payload);
+      const convo = CONVOS.find((x) => x.id === payload.conversationId);
+      if (convo && convo.title === 'New chat') convo.title = payload.message.slice(0, 60);
+      const enc = new TextEncoder();
+      const stream = new ReadableStream({
+        async start(controller) {
+          const send = (ev, data) => controller.enqueue(enc.encode('event: ' + ev + '\ndata: ' + JSON.stringify(data) + '\n\n'));
+          send('start', { conversationId: payload.conversationId, model: payload.model, evidenceCount: cites.length, citations: cites });
+          const words = text.split(/(\s+)/);
+          let acc = '';
+          for (let i = 0; i < words.length; i += 6) {
+            if (opts.signal && opts.signal.aborted) break;
+            const piece = words.slice(i, i + 6).join('');
+            acc += piece;
+            send('delta', { text: piece });
+            await sleep(18);
+          }
+          const msgs = MSGS[payload.conversationId] || (MSGS[payload.conversationId] = []);
+          msgs.push({ id: 'u' + Date.now(), role: 'user', content: payload.message, fileIds: payload.fileIds || [], repoIds: payload.repoIds || [], images: (payload.images || []).map((x) => x.name), at: new Date().toISOString() });
+          msgs.push({ id: 'a' + Date.now(), role: 'assistant', content: acc, model: payload.model, status: 'complete', inputTokens: 380, outputTokens: Math.max(20, Math.round(acc.length / 4)), citations: cites, at: new Date().toISOString() });
+          send('usage', { input: 380, output: Math.max(20, Math.round(acc.length / 4)), estimated: false, cost: 0.00031, finishReason: 'stop' });
+          send('done', { ok: true, stopped: false });
+          controller.close();
+        },
+      });
+      return new Response(stream, { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    }
+
+    if (path === '/api/files' && method === 'GET') return json(200, { files: FILES });
+    if (path === '/api/files' && method === 'POST') {
+      const b = await body(opts);
+      if (/\.exe$/i.test(b.name || '')) return json(400, { error: { message: 'Unsupported file type ".exe". Supported: PDF, TXT, MD, CSV, JSON, and common code files.' } });
+      const f = { id: 'f' + Date.now(), name: b.name, kind: /\.pdf$/i.test(b.name) ? 'pdf' : 'text', byteSize: 1024, indexStatus: 'ready', chunks: 2, pages: /\.pdf$/i.test(b.name) ? 2 : 1, error: null, extraction: 'native', at: new Date().toISOString() };
+      FILES.push(f);
+      return json(201, { file: f });
+    }
+    m = path.match(/^\/api\/files\/([\w-]+)$/);
+    if (m && method === 'DELETE') { FILES = FILES.filter((f) => f.id !== m[1]); return json(200, { ok: true }); }
+
+    if (path === '/api/github' && method === 'GET') return json(200, { repos: REPOS });
+    if (path === '/api/github' && method === 'POST') {
+      const b = await body(opts);
+      const r = { id: 'r' + Date.now(), owner: b.owner || 'demo', repo: b.repo || 'repo', defaultBranch: 'main', description: 'Demo index (mock)', status: 'ready', filesIndexed: 3, filesSkipped: 1, skippedReasons: ['possible secret: .env'], chunkCount: 4, fileList: ['README.md', 'src/index.js', 'src/utils.js'], at: new Date().toISOString() };
+      REPO_FILES[r.id] = { 'README.md': '# ' + r.repo + '\n\nDemo readme.\n', 'src/index.js': 'console.log("hello from ' + r.repo + '");\n', 'src/utils.js': 'export const add = (a, b) => a + b;\n' };
+      REPOS.push(r);
+      return json(201, { repo: r });
+    }
+    m = path.match(/^\/api\/github\/([\w-]+)\/file\?path=(.+)$/);
+    if (m) {
+      const files = REPO_FILES[m[1]] || {};
+      const p = decodeURIComponent(m[2]);
+      return (p in files) ? json(200, { path: p, content: files[p] }) : json(404, { error: { message: 'File not in index' } });
+    }
+    m = path.match(/^\/api\/github\/([\w-]+)$/);
+    if (m && method === 'DELETE') { REPOS = REPOS.filter((r) => r.id !== m[1]); delete REPO_FILES[m[1]]; return json(200, { ok: true }); }
+
+    if (path === '/api/feedback' && method === 'GET') return json(200, { feedback: [...FEEDBACK].reverse() });
+    if (path === '/api/feedback' && method === 'POST') {
+      const b = await body(opts);
+      const item = { id: 'fb' + Date.now(), type: b.type, priority: b.priority || 'medium', status: 'new', title: String(b.title || '').slice(0, 200), description: String(b.description || '').slice(0, 5000), pageUrl: b.pageUrl || null, consent: !!b.consent, browser: b.consent ? (b.browser || null) : null, history: [{ status: 'new', at: new Date().toISOString(), by: 'system' }], createdAt: new Date().toISOString() };
+      FEEDBACK.push(item);
+      return json(201, { feedback: item, message: 'Feedback submitted. Thank you \u2014 an admin can review it from the feedback dashboard.' });
+    }
+    m = path.match(/^\/api\/feedback\/([\w-]+)$/);
+    if (m && method === 'PUT') {
+      const b = await body(opts);
+      const allowed = ['new', 'triaged', 'needs_more_information', 'planned', 'in_progress', 'resolved', 'closed', 'rejected'];
+      if (!allowed.includes(b.status)) return json(400, { error: { message: 'Invalid status' } });
+      const item = FEEDBACK.find((f) => f.id === m[1]);
+      if (!item) return json(404, { error: { message: 'Feedback not found' } });
+      item.status = b.status; item.history.push({ status: b.status, at: new Date().toISOString(), by: 'admin' });
+      return json(200, { feedback: item });
+    }
+
+    if (path === '/api/usage') return json(200, USAGE);
+
+    return json(404, { error: { message: 'Mock route not found: ' + path } });
+  };
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const b = document.createElement('div');
+    b.style.cssText = 'position:fixed;top:10px;right:10px;z-index:200;background:#4f46e5;color:#fff;font-size:11px;font-weight:600;border-radius:999px;padding:4px 12px;box-shadow:0 1px 4px rgba(0,0,0,.25);pointer-events:none';
+    b.textContent = 'Offline UI demo \u2014 mock data';
+    document.body.appendChild(b);
+    document.title = 'AI Workspace \u2014 Offline UI Demo';
+  });
+})();
+/* ================= end shim ================= */
+
+/* ============ state ============ */
+const S = {
+  view: 'chat', credentials: [], conversations: [], files: [], repos: [],
+  modelsByCred: {}, currentConvo: null, messages: [], convoTitle: 'New chat',
+  selCred: localStorage.getItem('selCred') || null, selModel: localStorage.getItem('selModel') || null,
+  attachedFiles: new Set(), attachedRepos: new Set(), attachedImages: [],
+  streaming: false, abort: null, feedback: [],
+  sysPromptOpen: false, systemPrompt: '', temperature: 0.7,
+};
+const VIEWS = [['chat', 'Chat'], ['files', 'Library'], ['github', 'GitHub'], ['feedback', 'Feedback'], ['usage', 'Usage'], ['settings', 'Providers']];
+function renderNav() {
+  $('#nav').innerHTML = VIEWS.map(([v, l]) => `<button class="tab ${S.view === v ? 'active' : ''}" data-v="${v}">${l}</button>`).join('');
+  $('#nav').querySelectorAll('[data-v]').forEach((b) => b.onclick = () => setView(b.dataset.v));
+  const dot = $('#conn-dot');
+  const ok = S.credentials.some((c) => c.status === 'connected');
+  dot.className = 'status-dot' + (ok ? ' on' : '');
+  dot.textContent = ok ? S.credentials.find((c) => c.status === 'connected').provider : 'no provider';
+}
+function setView(v) { S.view = v; renderNav(); render(); }
+function applyTheme() { document.documentElement.classList.toggle('dark', localStorage.getItem('theme') === 'dark'); }
+$('#theme-toggle').onclick = () => { localStorage.setItem('theme', localStorage.getItem('theme') === 'dark' ? 'light' : 'dark'); applyTheme(); };
+applyTheme();
+/* ============ utils ============ */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function toast(msg, isErr) {
+  const t = document.createElement('div'); t.className = 'toast' + (isErr ? ' err' : ''); t.textContent = msg;
+  $('#toasts').appendChild(t); setTimeout(() => t.remove(), 5200);
+}
+async function api(method, url, body) {
+  const res = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j?.error?.message || ('Request failed (' + res.status + ')'));
+  return j;
+}
+function fmtBytes(n) { if (!n) return ''; return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.ceil(n / 1024) + ' KB'; }
+function timeAgo(iso) { const d = (Date.now() - new Date(iso)) / 1000; if (d < 60) return 'just now'; if (d < 3600) return Math.floor(d / 60) + 'm ago'; if (d < 86400) return Math.floor(d / 3600) + 'h ago'; return new Date(iso).toLocaleDateString(); }
+function stPill(st) {
+  const map = { connected: ['green', 'connected'], failed: ['red', 'failed'], not_tested: ['amber', 'not tested'], rate_limited: ['amber', 'rate limited'], ready: ['green', 'ready'], processing: ['blue', 'processing'], indexing: ['blue', 'indexing'], failed: ['red', 'failed'] };
+  const [c, l] = map[st] || ['', st]; return `<span class="pill ${c}">${esc(l)}</span>`;
+}
+function md(text) {
+  const store = [];
+  let s = String(text ?? '').replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => { store.push({ lang: lang || '', code }); return '\x00C' + (store.length - 1) + '\x00'; });
+  s = esc(s);
+  s = s.replace(/`([^`\n]+)`/g, '<code class="inline">$1</code>');
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|\W)\*([^*\n]+)\*(?=\W|$)/g, '$1<em>$2</em>');
+  s = s.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  s = s.replace(/^###\s?(.+)$/gm, '<h3>$1</h3>').replace(/^##\s?(.+)$/gm, '<h2>$1</h2>').replace(/^#\s?(.+)$/gm, '<h1>$1</h1>');
+  s = s.replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>');
+  s = s.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>');
+  s = s.replace(/(<li>.*<\/li>\n?)+/g, (m) => '<ul>' + m + '</ul>');
+  s = s.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+  s = s.replace(/\n{2,}/g, '</p><p>');
+  s = '<p>' + s + '</p>';
+  s = s.replace(/\x00C(\d+)\x00/g, (_, i) => {
+    const b = store[+i];
+    return '<div class="code-head"><span>' + esc(b.lang || 'code') + '</span><button class="copy-code btn ghost sm">copy</button></div><pre><code>' + esc(b.code) + '</code></pre>';
+  });
+  return s;
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('.copy-code');
+  if (b) { navigator.clipboard.writeText(b.closest('.code-head').nextElementSibling.innerText).then(() => toast('Copied')); }
+});
+function render() {
+  const main = $('#main');
+  if (S.view === 'chat') return renderChat(main);
+  if (S.view === 'files') return renderFiles(main);
+  if (S.view === 'github') return renderGithub(main);
+  if (S.view === 'feedback') return renderFeedback(main);
+  if (S.view === 'usage') return renderUsage(main);
+  if (S.view === 'settings') return renderSettings(main);
+}
+/* ============ chat ============ */
+function currentModels() { return S.selCred ? (S.modelsByCred[S.selCred] || []) : []; }
+function selModelInfo() { return currentModels().find((m) => m.id === S.selModel) || null; }
+function visionBlocked() { const i = selModelInfo(); return S.attachedImages.length > 0 && i && i.vision === false; }
+function pickDefaultModel(models) {
+  if (!models || !models.length) return null;
+  return models.find((m) => /:free$/.test(m.id)) || models.find((m) => /gpt-4o-mini|llama-3\.3-70b|llama-3\.1-8b|gemini.*flash|claude-3\.5/.test(m.id)) || models[0];
+}
+function renderChat(main) {
+  main.innerHTML = `<div class="view">
+    <div class="chat-grid">
+      <div>
+        <div class="convo-bar">
+          <button class="convo-title-btn" id="convo-btn">${esc(S.convoTitle)} <span class="caret">▾</span></button>
+          <div style="flex:1"></div>
+          <button class="btn sm" id="new-chat">＋ New chat</button>
+          <div class="convo-menu" id="convo-menu" hidden></div>
+        </div>
+        <div class="thread" id="thread"></div>
+        <div id="composer-slot"></div>
+      </div>
+      <div class="rail" id="rail"></div>
+    </div>
+  </div>`;
+  $('#new-chat').onclick = () => { S.currentConvo = null; S.messages = []; S.convoTitle = 'New chat'; S.attachedFiles.clear(); S.attachedRepos.clear(); S.attachedImages = []; renderChat(main); };
+  $('#convo-btn').onclick = (e) => { e.stopPropagation(); const m = $('#convo-menu'); m.hidden = !m.hidden; if (!m.hidden) paintConvoMenu(); };
+  document.onclick = () => { const m = $('#convo-menu'); if (m) m.hidden = true; };
+  renderThread(); renderComposer(); renderRail();
+}
+function paintConvoMenu() {
+  const m = $('#convo-menu'); if (!m) return;
+  m.innerHTML = (S.conversations.map((c) => `
+    <div class="item ${c.id === S.currentConvo ? 'active' : ''}" data-c="${c.id}">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.title)}</span>
+      <button class="del" data-d="${c.id}">✕</button>
+    </div>`).join('') || '<div class="empty" style="padding:14px;font-size:13px">No conversations yet</div>');
+  m.querySelectorAll('[data-c]').forEach((d) => d.onclick = async (e) => {
+    if (e.target.dataset.d) return;
+    const { conversation, messages } = await api('GET', '/api/conversations/' + d.dataset.c);
+    S.currentConvo = conversation.id; S.messages = messages; S.convoTitle = conversation.title;
+    if (conversation.model) S.selModel = conversation.model;
+    m.hidden = true; $('#convo-btn').firstChild.textContent = S.convoTitle + ' ';
+    renderThread(); renderComposer(); renderRail();
+  });
+  m.querySelectorAll('[data-d]').forEach((b) => b.onclick = async (e) => {
+    e.stopPropagation();
+    if (!confirm('Delete this conversation?')) return;
+    await api('DELETE', '/api/conversations/' + b.dataset.d);
+    await bootstrap();
+    if (S.currentConvo === b.dataset.d) { S.currentConvo = null; S.messages = []; S.convoTitle = 'New chat'; renderThread(); }
+    paintConvoMenu();
+  });
+}
+function renderRail() {
+  const r = $('#rail'); if (!r) return;
+  const info = selModelInfo();
+  const cred = S.credentials.find((c) => c.id === S.selCred);
+  const atts = [
+    ...[...S.attachedFiles].map((id) => { const f = S.files.find((x) => x.id === id); return f ? `<div class="rail-item"><span>📄 ${esc(f.name)}</span><button data-rmf="${id}">✕</button></div>` : ''; }),
+    ...[...S.attachedRepos].map((id) => { const x = S.repos.find((y) => y.id === id); return x ? `<div class="rail-item"><span>⌥ ${esc(x.owner + '/' + x.repo)}</span><button data-rmr="${id}">✕</button></div>` : ''; }),
+    ...S.attachedImages.map((im, i) => `<div class="rail-item"><span>🖼 ${esc(im.name)}</span><button data-rmi="${i}">✕</button></div>`),
+  ].join('');
+  r.innerHTML = `
+    <div class="card">
+      <h3>Model</h3>
+      ${info ? `<div class="model-name">${esc(info.name)}</div>
+        <div class="row" style="margin-bottom:9px">
+          <span class="pill ${info.vision ? 'green' : ''}">${info.vision ? 'vision' : 'text-only'}</span>
+          ${info.context ? `<span class="pill">${Math.round(info.context / 1024)}k ctx</span>` : ''}
+        </div>
+        <div class="kv"><span>Provider</span><span>${esc(cred ? cred.provider : '—')}</span></div>
+        <div class="kv"><span>Key</span><span style="font-family:var(--mono)">${esc(cred ? cred.masked : '—')}</span></div>
+        ${info.inputCostPerMtok != null ? `<div class="kv"><span>Cost / Mtok</span><span>$${info.inputCostPerMtok} · $${info.outputCostPerMtok}</span></div>` : ''}
+        <div style="margin-top:12px"><a href="#" id="switch-provider" style="font-size:12.5px">Switch provider / model…</a></div>`
+      : `<div class="empty" style="padding:14px;font-size:13px">${S.credentials.length ? 'Pick a model in the composer' : 'No provider yet'}</div>
+         <button class="btn sm" style="margin-top:6px" onclick="setView('settings')">${S.credentials.length ? 'Model list' : 'Add a provider key'}</button>`}
+    </div>
+    <div class="card">
+      <h3>Context attached</h3>
+      ${atts || '<div style="font-size:13px;color:var(--ink-3)">Nothing attached. Use ＋ Attach under the composer.</div>'}
+    </div>
+    <div class="card">
+      <h3>Shortcuts</h3>
+      <div class="kv"><span>Send</span><span>Enter</span></div>
+      <div class="kv"><span>New line</span><span>Shift + Enter</span></div>
+    </div>`;
+  const sp = $('#switch-provider'); if (sp) sp.onclick = (e) => { e.preventDefault(); showModelPicker(); };
+  r.querySelectorAll('[data-rmf]').forEach((b) => b.onclick = () => { S.attachedFiles.delete(b.dataset.rmf); renderComposer(); renderRail(); });
+  r.querySelectorAll('[data-rmr]').forEach((b) => b.onclick = () => { S.attachedRepos.delete(b.dataset.rmr); renderComposer(); renderRail(); });
+  r.querySelectorAll('[data-rmi]').forEach((b) => b.onclick = () => { S.attachedImages.splice(+b.dataset.rmi, 1); renderComposer(); renderRail(); });
+}
+function showModelPicker() {
+  const root = $('#modal-root');
+  const credOpts = S.credentials.map((c) => `<option value="${c.id}" ${c.id === S.selCred ? 'selected' : ''}>${esc(c.provider === 'custom' ? (c.displayName || c.baseUrl) : c.provider)} · ${esc(c.masked)}</option>`).join('');
+  const modelOpts = currentModels().map((m) => `<option value="${esc(m.id)}" ${m.id === S.selModel ? 'selected' : ''}>${esc(m.name)}${m.vision ? ' · vision' : ''}</option>`).join('');
+  root.innerHTML = `<div class="modal-back" id="mb"><div class="modal">
+    <h2 style="margin-top:0">Provider &amp; model</h2>
+    <label class="lbl" style="margin-top:0">Provider key</label>
+    <select class="input" id="mp-cred"><option value="">Choose…</option>${credOpts}</select>
+    <label class="lbl">Model</label>
+    <select class="input" id="mp-model"><option value="">Choose…</option>${modelOpts}</select>
+    <div class="row" style="justify-content:flex-end;margin-top:18px"><button class="btn ghost" id="mp-close">Cancel</button><button class="btn primary" id="mp-save">Use this model</button></div>
+  </div></div>`;
+  $('#mb').onclick = (e) => { if (e.target.id === 'mb') root.innerHTML = ''; };
+  $('#mp-close').onclick = () => root.innerHTML = '';
+  $('#mp-cred').onchange = async (e) => {
+    S.selCred = e.target.value || null; localStorage.setItem('selCred', S.selCred || ''); S.selModel = null;
+    if (S.selCred && !S.modelsByCred[S.selCred]) {
+      try { const r = await api('GET', '/api/models?cred=' + S.selCred); S.modelsByCred[S.selCred] = r.models; } catch (err) { toast(err.message, true); }
+    }
+    $('#mp-model').innerHTML = '<option value="">Choose…</option>' + currentModels().map((m) => `<option value="${esc(m.id)}">${esc(m.name)}${m.vision ? ' · vision' : ''}</option>`).join('');
+  };
+  $('#mp-save').onclick = () => {
+    S.selModel = $('#mp-model').value || null; localStorage.setItem('selModel', S.selModel || '');
+    root.innerHTML = ''; renderRail(); renderComposer(); renderNav();
+  };
+}
+function renderComposer() {
+  const slot = $('#composer-slot'); if (!slot) return;
+  const filesReady = S.files.filter((f) => f.indexStatus === 'ready');
+  const reposReady = S.repos.filter((r) => r.status === 'ready');
+  const chips = [
+    ...[...S.attachedFiles].map((id) => { const f = S.files.find((x) => x.id === id); return f ? `<span class="chip on">📄 ${esc(f.name)}</span>` : ''; }),
+    ...[...S.attachedRepos].map((id) => { const r = S.repos.find((x) => x.id === id); return r ? `<span class="chip on">⌥ ${esc(r.owner + '/' + r.repo)}</span>` : ''; }),
+    ...S.attachedImages.map((im) => `<span class="chip on">🖼 ${esc(im.name)}</span>`),
+  ].join('');
+  slot.innerHTML = `<div class="composer">
+    ${chips ? `<div class="attach-row">${chips}</div>` : ''}
+    ${visionBlocked() ? `<div class="vision-warn"><span>This model can’t analyze images.</span><button class="btn sm" id="fix-vision">Show vision models</button></div>` : ''}
+    <div class="composer-box">
+      <div class="picker">
+        <button class="icon-btn" id="attach-btn" title="Attach context">＋ Attach</button>
+        <div class="picker-menu" id="attach-menu" hidden>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);padding:2px 9px">Indexed files</div>
+          ${filesReady.length ? filesReady.map((f) => `<div class="picker-item" data-pf="${f.id}"><input type="checkbox" ${S.attachedFiles.has(f.id) ? 'checked' : ''}> 📄 ${esc(f.name)}</div>`).join('') : '<div style="padding:5px 9px;font-size:12.5px;color:var(--ink-3)">None yet — upload on the Library page.</div>'}
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);padding:8px 9px 2px">GitHub repos</div>
+          ${reposReady.length ? reposReady.map((r) => `<div class="picker-item" data-pr="${r.id}"><input type="checkbox" ${S.attachedRepos.has(r.id) ? 'checked' : ''}> ⌥ ${esc(r.owner + '/' + r.repo)}</div>`).join('') : '<div style="padding:5px 9px;font-size:12.5px;color:var(--ink-3)">None yet — connect on the GitHub page.</div>'}
+          <div class="picker-item" data-img="1" style="border-top:1px solid var(--line);margin-top:6px">🖼 Upload an image…</div>
+        </div>
+        <input type="file" id="img-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden multiple>
+      </div>
+      <textarea class="input" id="msg" placeholder="Ask anything…"></textarea>
+      ${S.streaming ? '<button class="send-btn stop" id="stop-btn" title="Stop">■</button>' : '<button class="send-btn" id="send-btn" title="Send">↑</button>'}
+    </div>
+  </div>`;
+  const ta = $('#msg'); ta.focus();
+  ta.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); } };
+  const sb = $('#send-btn'); if (sb) sb.onclick = doSend;
+  const st = $('#stop-btn'); if (st) st.onclick = () => S.abort && S.abort.abort();
+  $('#attach-btn').onclick = (e) => { e.stopPropagation(); $('#attach-menu').hidden = !$('#attach-menu').hidden; };
+  document.addEventListener('click', () => { const m = $('#attach-menu'); if (m) m.hidden = true; }, { once: true });
+  $('#attach-menu').onclick = (e) => e.stopPropagation();
+  $('#attach-menu').querySelectorAll('[data-pf]').forEach((d) => d.onclick = () => { const id = d.dataset.pf; S.attachedFiles.has(id) ? S.attachedFiles.delete(id) : S.attachedFiles.add(id); renderComposer(); renderRail(); $('#attach-menu').hidden = false; });
+  $('#attach-menu').querySelectorAll('[data-pr]').forEach((d) => d.onclick = () => { const id = d.dataset.pr; S.attachedRepos.has(id) ? S.attachedRepos.delete(id) : S.attachedRepos.add(id); renderComposer(); renderRail(); $('#attach-menu').hidden = false; });
+  $('#attach-menu').querySelector('[data-img]').onclick = () => $('#img-input').click();
+  $('#img-input').onchange = async (e) => {
+    for (const f of e.target.files) {
+      if (f.size > 10 * 1024 * 1024) { toast(f.name + ' is over the 10 MB image limit.', true); continue; }
+      const dataUrl = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
+      S.attachedImages.push({ name: f.name, dataUrl });
+    }
+    renderComposer(); renderRail();
+  };
+  const fv = $('#fix-vision');
+  if (fv) fv.onclick = () => {
+    const vis = currentModels().filter((m) => m.vision);
+    if (!vis.length) { toast('This provider lists no vision-capable models.', true); return; }
+    S.selModel = vis[0].id; localStorage.setItem('selModel', S.selModel); renderComposer(); renderRail(); toast('Switched to ' + vis[0].name);
+  };
+}
+let streamEl = null;
+function renderThread() {
+  const th = $('#thread'); if (!th) return;
+  if (!S.messages.length) {
+    th.innerHTML = `<div class="empty" style="padding:60px 16px">
+      <div style="font-family:var(--serif);font-size:34px;font-weight:700;color:var(--ink);margin-bottom:8px">Ask anything.</div>
+      <div style="max-width:460px;margin:0 auto">${S.credentials.length ? 'Attach a document or repository with ＋ Attach for grounded, cited answers — or just start typing.' : 'Add a provider key to begin. Your keys are encrypted on the server and never shown again after saving.'}</div>
+      ${S.credentials.length ? '' : '<button class="btn primary" style="margin-top:18px" onclick="setView(\'settings\')">Add a provider key</button>'}
+    </div>`;
+    return;
+  }
+  th.innerHTML = S.messages.map((m) => {
+    if (m.role === 'user') {
+      const atts = [...(m.fileIds || []).map((id) => { const f = S.files.find((x) => x.id === id); return f ? `<span class="cite">📄 ${esc(f.name)}</span>` : ''; }),
+                    ...(m.repoIds || []).map((id) => { const r = S.repos.find((x) => x.id === id); return r ? `<span class="cite">⌥ ${esc(r.owner + '/' + r.repo)}</span>` : ''; }),
+                    ...(m.images || []).map((n) => `<span class="cite">🖼 ${esc(n)}</span>`)].join(' ');
+      return `<div class="entry user"><div class="role">You</div><div class="body">${esc(m.content).replace(/\n/g, '<br>')}</div>${atts ? `<div class="meta-line">${atts}</div>` : ''}</div>`;
+    }
+    const streaming = m.status === 'streaming';
+    const body = streaming ? `<div class="stream-target" style="white-space:pre-wrap"></div><span class="cursor"></span>`
+      : (m.status === 'failed' && !m.content ? esc(m.error || 'The request failed.') : md(m.content));
+    const cites = (m.citations || []).map((c) => `<span class="cite">${c.type === 'repo' ? '⌥ ' + esc(c.page) : '📄 ' + esc(c.source) + ' · p.' + c.page}</span>`).join(' ');
+    const usage = m.usage ? `<span style="font-size:11.5px;color:var(--ink-3)">${m.usage.input + m.usage.output} tokens${m.usage.cost != null ? ' · $' + m.usage.cost : ''}${m.usage.estimated ? ' (est.)' : ''}</span>` : (m.inputTokens ? `<span style="font-size:11.5px;color:var(--ink-3)">${m.inputTokens + m.outputTokens} tokens</span>` : '');
+    return `<div class="entry ${m.status === 'failed' ? 'failed' : ''}"><div class="role"><b>Assistant</b>${m.model ? ' · ' + esc(m.model) : ''}</div>
+      <div class="body">${body}${m.status === 'failed' && m.content ? `<p style="color:var(--ink-3);font-size:12.5px">⚠ ${esc(m.error || 'Interrupted')}</p>` : ''}</div>
+      ${cites || usage ? `<div class="meta-line">${cites}${usage}</div>` : ''}</div>`;
+  }).join('');
+  const last = S.messages[S.messages.length - 1];
+  streamEl = (last && last.role === 'assistant' && last.status === 'streaming') ? th.querySelector('.stream-target') : null;
+  window.scrollTo({ top: document.body.scrollHeight });
+}
+function streamPaint() {
+  if (!streamEl) return;
+  streamEl.textContent = S.messages[S.messages.length - 1].content;
+  window.scrollTo({ top: document.body.scrollHeight });
+}
+async function doSend() {
+  if (S.streaming) return;
+  const text = $('#msg').value.trim();
+  if (!text) return;
+  if (!S.selCred || !S.selModel) { showModelPicker(); toast('Pick a provider and model first.', true); return; }
+  if (visionBlocked()) { toast('This model can’t analyze images. Choose a vision-capable model.', true); return; }
+  if (!S.currentConvo) {
+    const { conversation } = await api('POST', '/api/conversations', {});
+    S.currentConvo = conversation.id; S.messages = []; S.convoTitle = conversation.title;
+  }
+  S.messages.push({ id: 'tmp-u', role: 'user', content: text, images: S.attachedImages.map((i) => i.name), at: new Date().toISOString() });
+  const payload = {
+    credentialId: S.selCred, model: S.selModel, conversationId: S.currentConvo, message: text,
+    systemPrompt: S.systemPrompt || undefined, temperature: S.temperature,
+    fileIds: [...S.attachedFiles], repoIds: [...S.attachedRepos], images: S.attachedImages,
+  };
+  S.attachedImages = [];
+  S.streaming = true;
+  const asst = { id: 'tmp-a', role: 'assistant', content: '', status: 'streaming', citations: [] };
+  S.messages.push(asst);
+  renderThread(); renderComposer(); renderRail();
+  S.abort = new AbortController();
+  try {
+    const resp = await fetch('/api/chat/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: S.abort.signal });
+    if (!resp.ok) { const j = await resp.json().catch(() => ({})); throw new Error(j?.error?.message || 'Request failed'); }
+    const reader = resp.body.getReader(); const dec = new TextDecoder();
+    let buf = '', ev = 'message';
+    const handle = (line) => {
+      if (line.startsWith('event:')) { ev = line.slice(6).trim(); return; }
+      if (!line.startsWith('data:')) return;
+      let d; try { d = JSON.parse(line.slice(5)); } catch { return; }
+      if (ev === 'start') { asst.citations = d.citations || []; renderThread(); }
+      if (ev === 'delta') { asst.content += d.text; streamPaint(); }
+      if (ev === 'usage') asst.usage = d;
+      if (ev === 'error') { asst.status = 'failed'; asst.error = d.message; }
+      if (ev === 'done') asst.status = 'complete';
+    };
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const l of lines) handle(l);
+    }
+    if (asst.status === 'streaming') asst.status = 'complete';
+  } catch (err) {
+    if (err.name === 'AbortError') { asst.status = asst.content ? 'complete' : 'failed'; if (!asst.content) asst.error = 'Generation stopped.'; }
+    else { asst.status = 'failed'; asst.error = err.message; }
+  }
+  S.streaming = false;
+  renderThread(); renderComposer(); renderRail();
+  await bootstrap(true);
+  const c = S.conversations.find((x) => x.id === S.currentConvo);
+  if (c) { S.convoTitle = c.title; const b = $('#convo-btn'); if (b) b.firstChild.textContent = S.convoTitle + ' '; }
+}
+/* ============ library (files) ============ */
+function renderFiles(main) {
+  main.innerHTML = `<div class="view">
+    <h1 class="page-title">Library</h1>
+    <p class="page-sub">Documents are parsed, chunked, and indexed on this server. They leave for a provider only when you ask about them.</p>
+    <div class="card">
+      <div class="file-drop" id="drop"><div style="font-weight:600;margin-bottom:4px">Drop files here, or click to browse</div>
+      <div style="font-size:12.5px;color:var(--ink-3)">PDF · TXT · MD · CSV · JSON · code — up to 50 MB</div></div>
+      <input type="file" id="file-input" hidden multiple accept=".pdf,.txt,.md,.markdown,.csv,.json,.js,.ts,.tsx,.jsx,.py,.java,.go,.rs,.sql,.yml,.yaml,.html,.css,.sh,.c,.cpp,.rb,.php">
+    </div>
+    <div class="card" style="padding:8px 22px">
+      <table class="tbl"><thead><tr><th>Document</th><th>Type</th><th>Size</th><th>Pages</th><th>Chunks</th><th>Status</th><th></th></tr></thead><tbody id="file-rows"></tbody></table>
+      ${S.files.length ? '' : '<div class="empty"><div class="serif">Nothing in the library yet</div><div>Upload a PDF to try grounded Q&amp;A with page citations.</div></div>'}
+    </div>
+  </div>`;
+  const drop = $('#drop'), inp = $('#file-input');
+  drop.onclick = () => inp.click();
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); uploadFiles(e.dataTransfer.files); };
+  inp.onchange = () => uploadFiles(inp.files);
+  paintFileRows();
+}
+function paintFileRows() {
+  const el = $('#file-rows'); if (!el) return;
+  const glyph = { pdf: '📕', text: '📄', code: '⌨' };
+  el.innerHTML = S.files.map((f) => `<tr>
+    <td><div class="row" style="flex-wrap:nowrap"><span class="file-glyph">${glyph[f.kind] || '📄'}</span>
+      <div><div style="font-family:var(--serif);font-weight:700">${esc(f.name)}</div>
+      ${f.error ? `<div style="font-size:12px;color:var(--danger)">${esc(f.error)}</div>` : ''}</div></div></td>
+    <td>${esc(f.kind)}</td><td style="color:var(--ink-3)">${fmtBytes(f.byteSize)}</td>
+    <td>${f.pages ?? '—'}</td><td>${f.chunks || '—'}</td><td>${stPill(f.indexStatus)}</td>
+    <td><button class="btn danger-ghost sm" data-delf="${f.id}">Delete</button></td></tr>`).join('');
+  el.querySelectorAll('[data-delf]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Delete this file and all of its extracted text, chunks, and index entries?')) return;
+    await api('DELETE', '/api/files/' + b.dataset.delf);
+    await bootstrap(); render(); toast('File deleted, including its index entries.');
+  });
+}
+async function uploadFiles(fileList) {
+  for (const f of fileList) {
+    if (f.size > 50 * 1024 * 1024) { toast(f.name + ': over the 50 MB limit.', true); continue; }
+    const b64 = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(f); });
+    try {
+      toast('Uploading ' + f.name + '…');
+      const { file } = await api('POST', '/api/files', { name: f.name, dataBase64: b64 });
+      if (file.indexStatus === 'ready') toast(file.name + ' is ready — ' + file.chunks + ' chunks' + (file.pages ? ' across ' + file.pages + ' pages' : '') + '.');
+      else if (file.indexStatus === 'failed') toast(file.name + ': ' + file.error, true);
+    } catch (e) { toast(e.message, true); }
+  }
+  await bootstrap(); render();
+}
+/* ============ github ============ */
+function renderGithub(main) {
+  main.innerHTML = `<div class="view">
+    <h1 class="page-title">GitHub</h1>
+    <p class="page-sub">Read-only in this build. Public repos are indexed here — files matching secret patterns are skipped and counted, never embedded.</p>
+    <div class="card">
+      <div class="row">
+        <input class="input" id="gh-owner" placeholder="owner" style="max-width:190px">
+        <input class="input" id="gh-repo" placeholder="repo" style="max-width:210px">
+        <button class="btn primary" id="gh-connect">Connect &amp; index</button>
+      </div>
+    </div>
+    <div id="repo-cards">${S.repos.map(repoCard).join('') || '<div class="empty"><div class="serif">No repositories connected</div><div>Connect a public repo, then attach it to a chat.</div></div>'}</div>
+  </div>`;
+  $('#gh-connect').onclick = async () => {
+    const owner = $('#gh-owner').value.trim(), repo = $('#gh-repo').value.trim();
+    if (!owner || !repo) { toast('Enter both owner and repo.', true); return; }
+    const btn = $('#gh-connect'); btn.disabled = true; btn.textContent = 'Indexing…';
+    try {
+      const { repo: r } = await api('POST', '/api/github', { owner, repo });
+      await bootstrap();
+      toast(r.status === 'ready' ? `Indexed ${r.filesIndexed} files from ${owner}/${repo}.` : `${owner}/${repo}: ${r.error || r.status}`, r.status !== 'ready');
+    } catch (e) { toast(e.message, true); }
+    render();
+  };
+  wireRepoCards();
+}
+function repoCard(r) {
+  return `<div class="card">
+    <div class="row between">
+      <div><div style="font-family:var(--serif);font-size:17px;font-weight:700">${esc(r.owner)}/${esc(r.repo)}</div>
+      <div style="font-size:12.5px;color:var(--ink-2)">${esc(r.description || '')}</div></div>
+      <div class="row">${stPill(r.status)}
+        ${r.status === 'ready' ? `<button class="btn sm" data-askrepo="${r.id}">Ask about this repo</button>` : ''}
+        <button class="btn danger-ghost sm" data-delrepo="${r.id}">Disconnect</button></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span class="pill">${r.filesIndexed || 0} files</span><span class="pill">${r.chunkCount || 0} chunks</span>
+      ${r.filesSkipped ? `<span class="pill amber">${r.filesSkipped} skipped</span>` : ''}
+      <span class="pill">branch · ${esc(r.defaultBranch)}</span>
+    </div>
+    ${r.skippedReasons && r.skippedReasons.length ? `<div style="margin-top:8px;font-size:12px;color:var(--warn)">⚠ ${esc(r.skippedReasons.slice(0, 3).join(' · '))}</div>` : ''}
+    ${r.error ? `<div style="margin-top:8px;font-size:12.5px;color:var(--danger)">${esc(r.error)}</div>` : ''}
+    ${r.status === 'ready' ? `<details style="margin-top:10px"><summary style="cursor:pointer;font-size:12.5px;color:var(--ink-2)">Browse indexed files</summary>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px" data-repofiles="${r.id}"></div></details>` : ''}
+  </div>`;
+}
+function wireRepoCards() {
+  document.querySelectorAll('[data-delrepo]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Disconnect this repo and delete its index?')) return;
+    await api('DELETE', '/api/github/' + b.dataset.delrepo);
+    await bootstrap(); render();
+  });
+  document.querySelectorAll('[data-askrepo]').forEach((b) => b.onclick = () => {
+    S.attachedRepos.add(b.dataset.askrepo); setView('chat'); toast('Repo attached — ask your question.');
+  });
+  for (const el of document.querySelectorAll('[data-repofiles]')) {
+    const rec = S.repos.find((x) => x.id === el.dataset.repofiles);
+    const keys = (rec && rec.fileList) || [];
+    el.innerHTML = keys.length ? keys.map((p) => `<span class="chip" data-viewfile="${esc(p)}" data-repo="${rec.id}" style="cursor:pointer">${esc(p)}</span>`).join('') : '<span style="font-size:12px;color:var(--ink-3)">No browsable files.</span>';
+    el.querySelectorAll('[data-viewfile]').forEach((c) => c.onclick = async () => {
+      try {
+        const { content } = await api('GET', `/api/github/${rec.id}/file?path=${encodeURIComponent(c.dataset.viewfile)}`);
+        showFileModal(c.dataset.viewfile, content);
+      } catch (e) { toast(e.message, true); }
+    });
+  }
+}
+function showFileModal(path, content) {
+  const root = $('#modal-root');
+  root.innerHTML = `<div class="modal-back" id="mb"><div class="modal" style="max-width:780px">
+    <div class="row between"><strong style="font-family:var(--mono);font-size:13px">${esc(path)}</strong><button class="btn ghost sm" id="mclose">Close</button></div>
+    <pre style="margin-top:14px;max-height:60vh;overflow:auto;background:var(--raised);border:1px solid var(--line);border-radius:8px;padding:14px;font-size:12px;font-family:var(--mono)">${esc(content.slice(0, 60000))}</pre>
+  </div></div>`;
+  $('#mb').onclick = (e) => { if (e.target.id === 'mb' || e.target.id === 'mclose') root.innerHTML = ''; };
+}
+/* ============ feedback ============ */
+const FB_TYPES = [['bug', 'Bug report'], ['feature_request', 'Feature request'], ['ui_confusion', 'UI confusion'], ['provider_issue', 'Provider / model issue'], ['document_issue', 'PDF / document issue'], ['image_issue', 'Image issue'], ['github_issue', 'GitHub connector issue'], ['performance_issue', 'Performance issue'], ['security_privacy', 'Security / privacy concern'], ['general', 'General feedback']];
+const FB_STATUSES = ['new', 'triaged', 'needs_more_information', 'planned', 'in_progress', 'resolved', 'closed', 'rejected'];
+function renderFeedback(main) {
+  main.innerHTML = `<div class="view">
+    <h1 class="page-title">Feedback</h1>
+    <p class="page-sub">Stored server-side, triaged by an admin. Diagnostics attach only with your consent — never keys or file contents.</p>
+    <div class="grid2">
+      <div class="card">
+        <h2 class="card-title">Write to us</h2>
+        <label class="lbl" style="margin-top:0">Type</label>
+        <select class="input" id="fb-type">${FB_TYPES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+        <label class="lbl">Priority</label>
+        <select class="input" id="fb-priority"><option>low</option><option selected>medium</option><option>high</option><option>critical</option></select>
+        <label class="lbl">Title</label><input class="input" id="fb-title" maxlength="200" placeholder="One-line summary">
+        <label class="lbl">Description</label><textarea class="input" id="fb-desc" rows="5" placeholder="What happened? What did you expect?"></textarea>
+        <label style="display:flex;gap:9px;margin-top:13px;font-size:13px;color:var(--ink-2)">
+          <input type="checkbox" id="fb-consent"> Include diagnostic context (page URL + browser info).
+        </label>
+        <div style="margin-top:15px"><button class="btn primary" id="fb-submit">Submit feedback</button></div>
+      </div>
+      <div class="card">
+        <div class="row between"><h2 class="card-title" style="margin:0">Triage ledger</h2>
+          <select class="input" id="fb-filter" style="width:160px"><option value="">All statuses</option>${FB_STATUSES.map((s) => `<option>${s}</option>`).join('')}</select></div>
+        <div id="fb-list" style="margin-top:12px"></div>
+      </div>
+    </div>
+  </div>`;
+  $('#fb-submit').onclick = async () => {
+    const title = $('#fb-title').value.trim(), description = $('#fb-desc').value.trim();
+    if (!title || !description) { toast('Add a title and description first.', true); return; }
+    try {
+      const r = await api('POST', '/api/feedback', { type: $('#fb-type').value, priority: $('#fb-priority').value, title, description, pageUrl: '/' + S.view, consent: $('#fb-consent').checked, browser: navigator.userAgent });
+      toast(r.message); $('#fb-title').value = ''; $('#fb-desc').value = ''; $('#fb-consent').checked = false;
+      await loadFeedback(); paintFbList();
+    } catch (e) { toast(e.message, true); }
+  };
+  $('#fb-filter').onchange = paintFbList;
+  loadFeedback().then(paintFbList);
+}
+async function loadFeedback() { S.feedback = (await api('GET', '/api/feedback')).feedback; }
+function paintFbList() {
+  const el = $('#fb-list'); if (!el) return;
+  const filter = $('#fb-filter')?.value || '';
+  const items = S.feedback.filter((f) => !filter || f.status === filter);
+  if (!items.length) { el.innerHTML = '<div class="empty" style="padding:22px">No feedback yet</div>'; return; }
+  el.innerHTML = items.map((f) => `
+    <div style="border:1px solid var(--line);border-radius:9px;padding:13px 15px;margin-bottom:10px">
+      <div class="row between"><strong style="font-family:var(--serif);font-size:14.5px">${esc(f.title)}</strong>
+        <span class="pill ${f.priority === 'critical' ? 'red' : f.priority === 'high' ? 'amber' : ''}">${esc(f.priority)}</span></div>
+      <div style="font-size:12px;color:var(--ink-3);margin:3px 0 6px">${esc(FB_TYPES.find(([v]) => v === f.type)?.[1] || f.type)} · ${timeAgo(f.createdAt)}${f.consent ? ' · diagnostics ✓' : ''}</div>
+      <div style="font-size:13px;color:var(--ink-2)">${esc(f.description).replace(/\n/g, '<br>')}</div>
+      <div class="row" style="margin-top:9px">
+        <select class="input" data-fbstatus="${f.id}" style="width:210px;padding:5px 9px">${FB_STATUSES.map((s) => `<option ${s === f.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        <span style="font-size:11px;color:var(--ink-3)">${f.history.length} status entry</span>
+      </div>
+    </div>`).join('');
+  el.querySelectorAll('[data-fbstatus]').forEach((sel) => sel.onchange = async () => {
+    await api('PUT', '/api/feedback/' + sel.dataset.fbstatus, { status: sel.value });
+    await loadFeedback(); paintFbList(); toast('Status updated — history recorded.');
+  });
+}
+/* ============ usage ============ */
+function renderUsage(main) {
+  main.innerHTML = `<div class="view"><h1 class="page-title">Usage &amp; cost</h1><p class="page-sub">Estimates are labeled as such. Providers without pricing show usage only — never fake zeros.</p><div id="usage-body"><div class="empty">Loading…</div></div></div>`;
+  api('GET', '/api/usage').then(({ totals, perConversation }) => {
+    $('#usage-body').innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+        ${[['Requests', totals.calls], ['Input tokens', totals.input.toLocaleString()], ['Output tokens', totals.output.toLocaleString()], ['Est. cost', totals.cost ? '$' + totals.cost.toFixed(4) : 'n/a']].map(([l, v]) =>
+          `<div class="card" style="margin:0;text-align:center;padding:22px"><div style="font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-3)">${l}</div><div style="font-family:var(--serif);font-size:28px;font-weight:700;margin-top:5px">${v}</div></div>`).join('')}
+      </div>
+      <div class="card" style="padding:8px 22px">
+        <table class="tbl"><thead><tr><th>Conversation</th><th>Requests</th><th>Input</th><th>Output</th><th>Est. cost</th><th>Models</th></tr></thead><tbody>
+        ${perConversation.map((c) => `<tr><td style="font-family:var(--serif);font-weight:700">${esc(c.title)}</td><td>${c.calls}</td><td>${c.input.toLocaleString()}</td><td>${c.output.toLocaleString()}</td><td>${c.cost ? '$' + c.cost.toFixed(4) : '—'}</td><td style="color:var(--ink-3)">${c.models.map(esc).join(', ')}</td></tr>`).join('') || '<tr><td colspan="6" style="color:var(--ink-3)">No usage yet — send a chat message.</td></tr>'}
+        </tbody></table>
+      </div>`;
+  }).catch((e) => { $('#usage-body').innerHTML = `<div class="empty">${esc(e.message)}</div>`; });
+}
+/* ============ settings ============ */
+function renderSettings(main) {
+  main.innerHTML = `<div class="view">
+    <h1 class="page-title">Providers</h1>
+    <p class="page-sub">Keys are encrypted on this server (AES-256-GCM), masked forever after saving, and only ever decrypted in memory for a provider call.</p>
+    <div id="cred-cards">${S.credentials.map(credCard).join('')}</div>
+    <div class="grid2">
+      <div class="card">
+        <h2 class="card-title">Add a provider key</h2>
+        <label class="lbl" style="margin-top:0">Provider</label>
+        <select class="input" id="add-provider"><option value="openrouter">OpenRouter</option><option value="groq">Groq</option><option value="custom">Custom (OpenAI-compatible)</option></select>
+        <div id="custom-fields" hidden>
+          <label class="lbl">Display name</label><input class="input" id="add-name" placeholder="e.g. Local Ollama">
+          <label class="lbl">Base URL</label><input class="input" id="add-url" placeholder="https://… (or http://localhost:11434/v1)">
+        </div>
+        <label class="lbl">API key</label><input class="input" id="add-key" type="password" placeholder="sk-or-… / gsk_…">
+        <div class="row" style="margin-top:15px"><button class="btn primary" id="add-btn">Save key</button>
+          <a style="font-size:12.5px" href="https://openrouter.ai/keys" target="_blank" rel="noopener">Get an OpenRouter key ↗</a>
+          <a style="font-size:12.5px" href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq key ↗</a></div>
+      </div>
+      <div class="card">
+        <h2 class="card-title">Key protection</h2>
+        <ul style="margin:4px 0;padding-left:20px;color:var(--ink-2);font-size:13.5px;line-height:2">
+          <li>AES-256-GCM at rest; master key held server-side (mode 0600).</li>
+          <li>Never returned by any API after saving.</li>
+          <li>Decrypted in memory only, for one provider call.</li>
+          <li>Rotate replaces ciphertexts; delete is permanent.</li>
+        </ul>
+      </div>
+    </div>
+  </div>`;
+  $('#add-provider').onchange = (e) => { $('#custom-fields').hidden = e.target.value !== 'custom'; };
+  $('#add-btn').onclick = async () => {
+    const provider = $('#add-provider').value;
+    const body = { provider, apiKey: $('#add-key').value.trim() };
+    if (provider === 'custom') { body.baseUrl = $('#add-url').value.trim(); body.displayName = $('#add-name').value.trim(); }
+    try {
+      await api('POST', '/api/credentials', body);
+      toast('Key saved — encrypted. Test the connection next.');
+      await bootstrap(); render(); renderNav();
+    } catch (e) { toast(e.message, true); }
+  };
+  document.querySelectorAll('[data-test]').forEach((b) => b.onclick = async () => {
+    b.disabled = true; b.textContent = 'Testing…';
+    try {
+      const r = await api('POST', `/api/credentials/${b.dataset.test}/test`);
+      toast(r.status === 'connected' ? `Connected — ${r.modelCount} models.` : `Failed: ${r.error}`, r.status !== 'connected');
+    } catch (e) { toast(e.message, true); }
+    await bootstrap(); render(); renderNav();
+  });
+  document.querySelectorAll('[data-rotate]').forEach((b) => b.onclick = async () => {
+    const k = prompt('Paste the replacement API key:');
+    if (!k) return;
+    try { await api('POST', `/api/credentials/${b.dataset.rotate}/rotate`, { apiKey: k.trim() }); toast('Key rotated.'); }
+    catch (e) { toast(e.message, true); }
+    await bootstrap(); render(); renderNav();
+  });
+  document.querySelectorAll('[data-delcred]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Delete this provider key?')) return;
+    await api('DELETE', '/api/credentials/' + b.dataset.delcred);
+    if (S.selCred === b.dataset.delcred) { S.selCred = null; localStorage.setItem('selCred', ''); }
+    await bootstrap(); render(); renderNav();
+  });
+}
+function credCard(c) {
+  return `<div class="card">
+    <div class="row between">
+      <div class="row"><span style="font-family:var(--serif);font-size:16px;font-weight:700;text-transform:capitalize">${esc(c.provider === 'custom' ? (c.displayName || 'Custom') : c.provider)}</span> ${stPill(c.status)}</div>
+      <div class="row">
+        <button class="btn sm" data-test="${c.id}">Test</button>
+        <button class="btn sm" data-rotate="${c.id}">Rotate</button>
+        <button class="btn danger-ghost sm" data-delcred="${c.id}">Delete</button>
+      </div>
+    </div>
+    <div style="margin-top:9px;font-size:12.5px;color:var(--ink-2)">
+      Key <span style="font-family:var(--mono)">${esc(c.masked)}</span>${c.baseUrl ? ' · ' + esc(c.baseUrl) : ''}${c.lastTestedAt ? ' · tested ' + timeAgo(c.lastTestedAt) : ''}
+      ${c.lastError ? `<div style="color:var(--danger)">${esc(c.lastError)}</div>` : ''}
+    </div>
+  </div>`;
+}
+/* ============ wizard ============ */
+function showWizard() {
+  let step = 0;
+  function paint() {
+    const root = $('#modal-root');
+    const dots = [0, 1, 2, 3].map((i) => `<span class="dot ${i <= step ? 'on' : ''}"></span>`).join('');
+    let body = '';
+    if (step === 0) body = `<h1 style="margin-top:0;font-size:26px">Welcome to the atelier.</h1>
+      <p style="color:var(--ink-2)">Chat with OpenRouter, Groq, or any OpenAI-compatible provider using your own keys. Upload PDFs, attach repositories, and get grounded answers with citations.</p>
+      <p style="color:var(--ink-3);font-size:13px">Keys are encrypted on the server and never shown again. You can skip this and set up later under <strong>Providers</strong>.</p>`;
+    if (step === 1) body = `<h2 style="margin-top:0">Add your first key</h2>
+      <label class="lbl" style="margin-top:6px">Provider</label>
+      <select class="input" id="wz-provider"><option value="openrouter">OpenRouter (recommended — 300+ models)</option><option value="groq">Groq (very fast inference)</option><option value="custom">Custom OpenAI-compatible endpoint</option></select>
+      <div id="wz-custom" hidden><label class="lbl">Base URL</label><input class="input" id="wz-url" placeholder="http://localhost:11434/v1"></div>
+      <label class="lbl">API key</label><input class="input" id="wz-key" type="password" placeholder="Paste your key…">
+      <p style="font-size:12.5px;color:var(--ink-3);margin-top:9px">Get one at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> or <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>.</p>`;
+    if (step === 2) body = `<h2 style="margin-top:0">Testing the connection</h2><p id="wz-test-msg" style="color:var(--ink-2)">Checking your key…</p>`;
+    if (step === 3) body = `<h2 style="margin-top:0">You’re set.</h2>
+      <p style="color:var(--ink-2)">Pick a model and send your first message. Optional: upload a PDF in the Library, or connect a repo under GitHub.</p>
+      <p style="font-size:12.5px;color:var(--ink-3)">Your first test message uses a tiny amount of provider credit.</p>`;
+    root.innerHTML = `<div class="modal-back"><div class="modal">
+      <div class="steps">${dots}</div>${body}
+      <div class="row between" style="margin-top:22px">
+        <button class="btn ghost" id="wz-skip">Skip setup</button>
+        <div class="row">${step > 0 && step < 3 ? '<button class="btn" id="wz-back">Back</button>' : ''}
+        <button class="btn primary" id="wz-next">${step === 0 ? 'Get started' : step === 1 ? 'Save & test' : step === 3 ? 'Start chatting' : 'Continue'}</button></div>
+      </div>
+    </div></div>`;
+    $('#wz-skip').onclick = () => { root.innerHTML = ''; };
+    const back = $('#wz-back'); if (back) back.onclick = () => { step--; paint(); };
+    if (step === 1) $('#wz-provider').onchange = (e) => { $('#wz-custom').hidden = e.target.value !== 'custom'; };
+    $('#wz-next').onclick = async () => {
+      if (step === 0) { step = 1; return paint(); }
+      if (step === 1) {
+        const provider = $('#wz-provider').value, apiKey = $('#wz-key').value.trim();
+        if (!apiKey) { toast('Paste an API key — or Skip.', true); return; }
+        try {
+          const body = { provider, apiKey };
+          if (provider === 'custom') body.baseUrl = $('#wz-url').value.trim();
+          const { credential } = await api('POST', '/api/credentials', body);
+          S._wzCred = credential.id; step = 2; paint();
+          const r = await api('POST', `/api/credentials/${credential.id}/test`);
+          const msg = $('#wz-test-msg');
+          if (r.status === 'connected') { msg.innerHTML = `<span style="color:var(--accent-ink)">✓ Connected — ${r.modelCount} models found.</span>`; setTimeout(() => { step = 3; paint(); }, 700); }
+          else { msg.innerHTML = `<span style="color:var(--danger)">✗ ${esc(r.error)}</span>`; const n = $('#wz-next'); n.textContent = 'Continue anyway'; n.onclick = () => { step = 3; paint(); }; }
+        } catch (e) { toast(e.message, true); }
+        return;
+      }
+      if (step === 3) {
+        $('#modal-root').innerHTML = '';
+        await bootstrap();
+        if (S._wzCred) { S.selCred = S._wzCred; localStorage.setItem('selCred', S.selCred); try { const r = await api('GET', '/api/models?cred=' + S.selCred); S.modelsByCred[S.selCred] = r.models; const good = pickDefaultModel(r.models); if (good) { S.selModel = good.id; localStorage.setItem('selModel', good.id); } } catch {} }
+        setView('chat'); renderNav();
+        return;
+      }
+      step++; paint();
+    };
+  }
+  paint();
+}
+/* ============ bootstrap ============ */
+async function bootstrap(silent) {
+  const b = await api('GET', '/api/bootstrap');
+  S.credentials = b.credentials; S.conversations = b.conversations; S.files = b.files; S.repos = b.repos;
+  if (!S.selCred && S.credentials.length) { S.selCred = S.credentials[0].id; localStorage.setItem('selCred', S.selCred); }
+  if (S.selCred && !S.modelsByCred[S.selCred]) {
+    try {
+      const r = await api('GET', '/api/models?cred=' + S.selCred); S.modelsByCred[S.selCred] = r.models;
+      if (!S.selModel) { const d = pickDefaultModel(r.models); if (d) { S.selModel = d.id; localStorage.setItem('selModel', d.id); } }
+    } catch {}
+  }
+  if (!silent) {
+    renderNav(); render();
+    if (!S.credentials.length && !sessionStorage.getItem('wizDone')) { sessionStorage.setItem('wizDone', '1'); showWizard(); }
+  }
+}
+window.setView = setView;
+renderNav();
+bootstrap();
+</script>
+</body>
+</html>
