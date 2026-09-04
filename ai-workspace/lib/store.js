@@ -28,12 +28,20 @@ let saveTimer = null;
 function atomicWrite(name, data) {
   const fp = path.join(DATA_DIR, name);
   const tmp = fp + '.tmp';
+  // The data dir can vanish under a running process (a volume unmount, an
+  // operator clearing state). Recreate it rather than throwing mid-shutdown,
+  // where the exception would mask the real reason we were exiting.
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
   fs.writeFileSync(tmp, data, { mode: 0o600 });
   fs.renameSync(tmp, fp); // atomic on POSIX: a crash never leaves a torn file
 }
 function persistNow() {
   clearTimeout(saveTimer);
-  for (const c of COLLECTIONS) atomicWrite(c + '.json', JSON.stringify(db[c]));
+  for (const c of COLLECTIONS) {
+    // One unwritable collection must not abort the rest of the flush.
+    try { atomicWrite(c + '.json', JSON.stringify(db[c])); }
+    catch (e) { console.error(`[store] failed to persist ${c}.json:`, e.message); }
+  }
 }
 function persist() {
   clearTimeout(saveTimer);

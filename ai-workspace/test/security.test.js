@@ -352,6 +352,27 @@ test('attemptCount / resetAttempts — backoff counter (V22)', () => {
 });
 
 // ---------------------------------------------------------------------------
+test('frame-ancestors defaults to none; FRAME_ANCESTORS is opt-in only (V35)', () => {
+  const prev = process.env.FRAME_ANCESTORS;
+  delete process.env.FRAME_ANCESTORS;
+
+  const set = {};
+  sec.securityHeaders(mkReq('GET'), { setHeader: (k, v) => { set[k.toLowerCase()] = v; } });
+  assert.ok(set['content-security-policy'].includes("frame-ancestors 'none'"), 'default must be none');
+  assert.equal(set['x-frame-options'], 'DENY', 'XFO must be sent when framing is denied');
+  assert.equal(set['cross-origin-resource-policy'], 'same-origin');
+
+  // Opt in: CSP carries the allowlist and XFO is dropped (it has no allowlist form).
+  process.env.FRAME_ANCESTORS = 'https://*.e2b.app';
+  const set2 = {};
+  sec.securityHeaders(mkReq('GET'), { setHeader: (k, v) => { set2[k.toLowerCase()] = v; } });
+  assert.ok(set2['content-security-policy'].includes('frame-ancestors https://*.e2b.app'));
+  assert.ok(!('x-frame-options' in set2), 'XFO must be dropped when specific ancestors are allowed');
+  assert.equal(set2['cross-origin-resource-policy'], 'cross-origin');
+
+  if (prev === undefined) delete process.env.FRAME_ANCESTORS; else process.env.FRAME_ANCESTORS = prev;
+});
+
 test('securityHeaders — CSP and hardening headers set', () => {
   const set = {};
   const res = { setHeader: (k, v) => { set[k.toLowerCase()] = v; } };

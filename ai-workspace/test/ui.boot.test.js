@@ -88,13 +88,23 @@ test('no inline event handlers or inline <script> remain in the served HTML/JS',
   }
 });
 
-test('hub.html relative document links resolve on disk', () => {
+test('hub.html links resolve: docs on disk, live links to served paths', () => {
   const src = fs.readFileSync(path.join(PUBLIC, 'hub.html'), 'utf8');
   const hrefs = [...src.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
     .filter((h) => !/^https?:/.test(h));
   assert.ok(hrefs.length > 0, 'no relative links found');
+
   for (const h of hrefs) {
-    const target = path.resolve(PUBLIC, h.split('#')[0]);
-    assert.ok(fs.existsSync(target), `hub.html links to a missing file: ${h}`);
+    const clean = h.split('#')[0];
+    if (clean.startsWith('/')) {
+      // Root-absolute: a path the SERVER exposes. Either a real file in public/
+      // or an API route — never a filesystem path relative to the page.
+      const asFile = path.join(PUBLIC, clean);
+      const isApi = clean.startsWith('/api/');
+      assert.ok(isApi || fs.existsSync(asFile), `hub.html live link is not served: ${h}`);
+    } else {
+      // Relative: resolved from disk when the page is opened via file://.
+      assert.ok(fs.existsSync(path.resolve(PUBLIC, clean)), `hub.html links to a missing file: ${h}`);
+    }
   }
 });

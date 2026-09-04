@@ -203,28 +203,45 @@ function rateLimit(req, name, limit, windowMs) {
 // onerror= handler will not execute. style-src keeps 'unsafe-inline' only
 // because the UI sets ~80 style="" attributes; those cannot execute code, and
 // style-src-attr scopes the exception to attributes rather than <style> blocks.
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self'",
-  "style-src 'self'",
-  "style-src-attr 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'self'",
-  "form-action 'none'",
-  "frame-ancestors 'none'",
-  "base-uri 'none'",
-  "object-src 'none'",
-].join('; ');
+// Clickjacking defence defaults to a hard 'none'. Hosted preview environments
+// (e2b, Codespaces, Gitpod...) render the app inside an iframe, so an operator
+// can opt in to specific parents with FRAME_ANCESTORS. Setting it to '*' is
+// possible but disables clickjacking protection — the value is echoed at boot
+// so it can never be enabled silently.
+function frameAncestors() {
+  const v = String(process.env.FRAME_ANCESTORS || '').trim();
+  return v || "'none'";
+}
+function buildCsp() {
+  return [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "style-src-attr 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "form-action 'none'",
+    `frame-ancestors ${frameAncestors()}`,
+    "base-uri 'none'",
+    "object-src 'none'",
+  ].join('; ');
+}
+const CSP = buildCsp();
 
 function securityHeaders(req, res) {
-  res.setHeader('Content-Security-Policy', CSP);
+  res.setHeader('Content-Security-Policy', buildCsp());
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
+  // X-Frame-Options has no allowlist form, so when specific ancestors are
+  // permitted we drop it and let the (strictly more expressive) CSP directive
+  // govern. Legacy browsers lose this one header; modern ones are unaffected.
+  if (frameAncestors() === "'none'") res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), interest-cohort=()');
   res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
-  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  // same-origin CORP blocks the parent frame from loading subresources in an
+  // embedded context; relax to cross-origin only when framing is allowed.
+  res.setHeader('Cross-Origin-Resource-Policy', frameAncestors() === "'none'" ? 'same-origin' : 'cross-origin');
   res.setHeader('X-Permitted-Cross-Domain-Policies', 'none');
   if (req.headers['x-forwarded-proto'] === 'https' || process.env.FORCE_HSTS === 'true') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -317,7 +334,7 @@ function resolveStatic(rootDir, urlPath) {
 }
 
 module.exports = {
-  UNSAFE_KEYS, trustProxy,
+  UNSAFE_KEYS, trustProxy, frameAncestors, buildCsp,
   AUTH_DISABLED, COOKIE, TOKEN_TTL_MS,
   loadAppToken, timingSafeEqual, mintSession, verifySession, parseCookies,
   checkOrigin, SAFE_METHODS,

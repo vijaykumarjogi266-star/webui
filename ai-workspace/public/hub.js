@@ -70,6 +70,14 @@ if (location.protocol !== 'file:') {
 const $ = (id) => document.getElementById(id);
 const originInput = $('origin');
 
+// When the hub is SERVED, the correct origin is always its own — the page is
+// reachable at whatever host the user actually typed (a preview proxy, a LAN IP,
+// a domain). Hardcoding localhost sent people to their own machine, which is a
+// different computer entirely when the server runs remotely.
+const DEFAULT_ORIGIN = (location.protocol === 'file:')
+  ? 'http://localhost:3000'
+  : location.origin;
+
 function setOriginLinks(origin) {
   document.querySelectorAll('a.card.live').forEach((a) => {
     a.href = origin.replace(/\/+$/, '') + a.dataset.path;
@@ -116,7 +124,7 @@ function paint(state, detail) {
 }
 
 async function probe() {
-  const origin = (originInput.value || '').trim().replace(/\/+$/, '') || 'http://localhost:3000';
+  const origin = (originInput.value || '').trim().replace(/\/+$/, '') || DEFAULT_ORIGIN;
   setOriginLinks(origin);
   paint('probing');
   try {
@@ -136,6 +144,10 @@ async function probe() {
     paint('down');
   }
 }
+
+// Seed the field from the page's own origin so the very first render is correct.
+originInput.value = DEFAULT_ORIGIN;
+setOriginLinks(DEFAULT_ORIGIN);
 
 $('recheck').addEventListener('click', probe);
 originInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') probe(); });

@@ -697,6 +697,11 @@ server.on('clientError', (err, socket) => {
 process.on('unhandledRejection', (e) => console.error('[unhandledRejection]', e));
 process.on('uncaughtException', (e) => { console.error('[uncaughtException]', e); try { persistNow(); } catch {} });
 
+// Surface a relaxed clickjacking policy loudly — it must never be a silent default.
+if (sec.frameAncestors() !== "'none'") {
+  console.warn(`  [security] framing ALLOWED for: ${sec.frameAncestors()} (FRAME_ANCESTORS). Unset it to restore frame-ancestors 'none'.`);
+}
+
 server.listen(PORT, HOST, () => {
   console.log(`AI Workspace demo build listening on http://${HOST}:${PORT}`);
 });

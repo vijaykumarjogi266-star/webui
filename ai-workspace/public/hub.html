@@ -101,7 +101,7 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
       <strong id="st-title">Checking for a running server…</strong>
       <span class="badge" id="st-badge">probing</span>
       <span style="flex:1"></span>
-      <input type="text" id="origin" value="http://localhost:3000" spellcheck="false" aria-label="Server origin">
+      <input type="text" id="origin" value="" placeholder="http://localhost:3000" spellcheck="false" aria-label="Server origin">
       <button class="btn sm" id="recheck">Re-check</button>
     </div>
     <div class="kv" id="kv" hidden>
@@ -119,15 +119,15 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
   <!-- ---------- live app ---------- -->
   <h2>Live application <span class="badge" id="live-note">needs a running server</span></h2>
   <div class="grid">
-    <a class="card live" href="http://localhost:3000/" data-path="/">
+    <a class="card live" href="/" data-path="/">
       <div class="t"><span class="ico">◆</span> Chat UI <span class="badge green">primary</span></div>
       <div class="d">The main workspace: streaming chat, document RAG with citations, GitHub Q&amp;A, usage tracking.</div>
     </a>
-    <a class="card live" href="http://localhost:3000/atelier.html" data-path="/atelier.html">
+    <a class="card live" href="/atelier.html" data-path="/atelier.html">
       <div class="t"><span class="ico">◈</span> Atelier UI</div>
       <div class="d">Alternate front end over the same API — denser, rail-based layout.</div>
     </a>
-    <a class="card live" href="http://localhost:3000/api/health/ready" data-path="/api/health/ready">
+    <a class="card live" href="/api/health/ready" data-path="/api/health/ready">
       <div class="t"><span class="ico">✓</span> Readiness probe</div>
       <div class="d">JSON counters for credentials and indexed files. Public, no token needed.</div>
     </a>

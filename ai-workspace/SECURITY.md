@@ -347,6 +347,28 @@ response header.
   route tests, 4000 fuzz cases, the smoke gate, a CSP regression check, and a secret scan.
 - `LICENSE` (explicit, matching the existing `UNLICENSED` declaration) and `CHANGELOG.md`.
 
+### Follow-up: embedding in hosted previews (V35)
+
+`frame-ancestors 'none'` plus `X-Frame-Options: DENY` is correct for a production deployment
+but makes the app unrenderable in hosted preview environments (e2b, Codespaces, Gitpod), which
+serve it inside an iframe — the page simply refuses to display.
+
+Rather than weaken the default, framing is now opt-in via `FRAME_ANCESTORS`:
+
+- unset (default) — `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `CORP: same-origin`
+- set — the CSP carries the allowlist, `X-Frame-Options` is dropped (it has no allowlist form,
+  and leaving `DENY` would override the CSP in browsers that honour both), and CORP relaxes to
+  `cross-origin` so the parent frame can load subresources
+
+The effective value is printed at startup whenever it is not `'none'`, so a relaxed policy can
+never be enabled silently. A unit test asserts the default stays `'none'` and that opting in
+produces exactly the header set above.
+
+Fixed alongside it: `atomicWrite()` now recreates the data directory if it has vanished under a
+running process, and `persistNow()` no longer aborts the whole flush when one collection fails
+to write. This surfaced as an `ENOENT` crash during shutdown, where the exception masked the
+real reason the process was exiting.
+
 ### Residual risk — current
 
 Closed since §8: the `'unsafe-inline'` CSP weakness (V33).
