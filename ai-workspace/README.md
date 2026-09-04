@@ -18,6 +18,13 @@ A running implementation of the MVP core from `../ai-web-ui-plan/AI_WEB_UI_BUILD
 | Governance | Versioned default system prompt with retrieval-boundary injection defense; refusal phrasing rule |
 | Ops | `/api/health/live` + `/ready`, graceful SIGTERM persistence |
 
+## Reviews
+
+- [`LAUNCH_REVIEW.md`](LAUNCH_REVIEW.md) — end-user and power-user walkthroughs against a live
+  server, with a scorecard and the ten-minute live-key check to run before declaring 1.0.
+- [`SECURITY.md`](SECURITY.md) — 37 findings across seven adversarial passes.
+- [`BUILD_REVIEW.md`](BUILD_REVIEW.md) — acceptance battery and production gaps.
+
 ## Utility console
 
 **With the server running: <http://localhost:3000/utility.html>** — a single page for driving

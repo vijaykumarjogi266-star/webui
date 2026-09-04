@@ -369,6 +369,23 @@ running process, and `persistNow()` no longer aborts the whole flush when one co
 to write. This surfaced as an `ENOENT` crash during shutdown, where the exception masked the
 real reason the process was exiting.
 
+### Follow-up: launch review (V36–V38)
+
+Walking the product as an end user and a power user (see `LAUNCH_REVIEW.md`) found three
+user-facing defects that no security test would have caught, because none of them is a
+vulnerability — they are failures to communicate:
+
+| # | Sev | Finding | Status |
+|---|-----|---------|--------|
+| V36 | **High (UX)** | Every provider transport failure surfaced Node's raw `"fetch failed"`. `normalizeNetworkError()` now maps DNS, refused, reset, timeout and TLS errors to specific guidance. | Fixed |
+| V37 | Medium | Chatting before adding a key returned `"Invalid credentialId."` — an internal field name for the most common first-run mistake. Now names the next action. | Fixed |
+| V38 | Medium | `safeError` replaced *all* 5xx bodies with "Something went wrong on our side", including upstream-transport 502s whose message is written for the user. Network/overload errors now pass through; genuine internals stay suppressed. | Fixed |
+
+Worth noting for future reviewers: V36 and V38 existed precisely *because* the sandbox has no
+outbound internet. The failure path is exercised constantly here while the success path never
+runs — the inverse of a normal dev machine, where these would have gone unnoticed until a user
+hit a firewall.
+
 ### Residual risk — current
 
 Closed since §8: the `'unsafe-inline'` CSP weakness (V33).

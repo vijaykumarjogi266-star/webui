@@ -41,6 +41,30 @@ function headersFor(apiKey, provider) {
   return h;
 }
 
+// Transport-level failures (DNS, TLS, refused, offline, timeout) never reach
+// normalizeError because there is no HTTP response. Left raw, the user sees
+// Node's "fetch failed", which explains nothing and looks like a bug in the app.
+function normalizeNetworkError(err) {
+  const code = (err && err.cause && err.cause.code) || err?.code || '';
+  const name = err?.name || '';
+  if (name === 'AbortError' || name === 'TimeoutError' || code === 'UND_ERR_CONNECT_TIMEOUT' || code === 'ETIMEDOUT') {
+    return { code: 'network', message: 'The provider did not respond in time. Check your connection and try again.', retryable: true };
+  }
+  if (code === 'ENOTFOUND' || code === 'EAI_AGAIN') {
+    return { code: 'network', message: 'Could not resolve the provider’s address. Check your internet connection or DNS.', retryable: true };
+  }
+  if (code === 'ECONNREFUSED') {
+    return { code: 'network', message: 'The provider refused the connection. If this is a custom base URL, check the host and port.', retryable: true };
+  }
+  if (code === 'ECONNRESET' || code === 'EPIPE' || code === 'UND_ERR_SOCKET') {
+    return { code: 'network', message: 'The connection to the provider was closed unexpectedly. This is usually a network or firewall issue — check outbound internet access.', retryable: true };
+  }
+  if (/certificate|self-signed|CERT_/i.test(code) || /certificate/i.test(err?.message || '')) {
+    return { code: 'network', message: 'The provider’s TLS certificate could not be verified.', retryable: false };
+  }
+  return { code: 'network', message: 'Could not reach the provider. Check your internet connection, then try again.', retryable: true, detail: code || err?.message };
+}
+
 function normalizeError(status, bodyText) {
   let detail = '';
   try { const j = JSON.parse(bodyText); detail = j?.error?.message || j?.message || ''; } catch { detail = bodyText?.slice(0, 300) || ''; }
@@ -60,9 +84,20 @@ function normalizeError(status, bodyText) {
 }
 
 // Authenticated key check (OpenRouter exposes /models publicly, so list-fetch is not proof of a valid key).
+// Single place where an outbound call is made, so every caller gets friendly
+// transport errors without repeating the try/catch.
+async function safeFetch(url, opts) {
+  try {
+    return await fetch(url, opts);
+  } catch (e) {
+    const n = normalizeNetworkError(e);
+    throw Object.assign(new Error(n.message), { status: 502, code: n.code, retryable: n.retryable, detail: n.detail });
+  }
+}
+
 async function verifyKey(cred, apiKey) {
   if (cred.provider === 'openrouter') {
-    const res = await fetch(`${BASES.openrouter}/auth/key`, { headers: headersFor(apiKey, 'openrouter'), signal: AbortSignal.timeout(15000) });
+    const res = await safeFetch(`${BASES.openrouter}/auth/key`, { headers: headersFor(apiKey, 'openrouter'), signal: AbortSignal.timeout(15000) });
     if (!res.ok) throw normalizeError(res.status, await res.text().catch(() => ''));
     return true;
   }
@@ -89,7 +124,7 @@ function looksLikeVision(provider, modelId, meta) {
 
 async function listModels(cred, apiKey) {
   const base = await assertUsableBase(cred);
-  const res = await fetch(`${base}/models`, { headers: headersFor(apiKey, cred.provider), signal: AbortSignal.timeout(20000) });
+  const res = await safeFetch(`${base}/models`, { headers: headersFor(apiKey, cred.provider), signal: AbortSignal.timeout(20000) });
   const text = await res.text();
   if (!res.ok) throw normalizeError(res.status, text);
   if (text.length > MAX_MODEL_BODY) throw Object.assign(new Error('The provider returned an unexpectedly large model list.'), { status: 502 });
@@ -120,7 +155,7 @@ async function streamChat({ cred, apiKey, model, messages, temperature = 0.7, ma
   if (maxTokens) body.max_tokens = maxTokens;
   if (cred.provider === 'openrouter') body.stream_options = { include_usage: true };
 
-  const res = await fetch(`${base}/chat/completions`, {
+  const res = await safeFetch(`${base}/chat/completions`, {
     method: 'POST', headers: headersFor(apiKey, cred.provider), body: JSON.stringify(body), signal, redirect: 'error',
   });
   if (!res.ok) {
@@ -174,4 +209,4 @@ async function streamChat({ cred, apiKey, model, messages, temperature = 0.7, ma
   return { text: full, usage, finishReason };
 }
 
-module.exports = { baseUrlFor, assertUsableBase, headersFor, listModels, streamChat, normalizeError, looksLikeVision, verifyKey };
+module.exports = { baseUrlFor, safeFetch, normalizeNetworkError, assertUsableBase, headersFor, listModels, streamChat, normalizeError, looksLikeVision, verifyKey };

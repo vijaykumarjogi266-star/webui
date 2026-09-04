@@ -346,6 +346,17 @@ test('chat validates inputs before touching a provider', async () => {
 });
 
 // ---------------------------------------------------------------------------
+test('chat guides a new user instead of emitting developer errors (V37)', async () => {
+  const noCred = await json(await req('POST', '/api/chat/stream', { body: { model: 'm', message: 'hi' } }));
+  assert.match(noCred.error.message, /provider key/i, 'should name the missing thing in user terms');
+  assert.ok(!/credentialId/.test(noCred.error.message), 'leaked an internal field name');
+
+  const noModel = await json(await req('POST', '/api/chat/stream', {
+    body: { credentialId: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee', message: 'hi' },
+  }));
+  assert.match(noModel.error.message, /model/i);
+});
+
 test('usage endpoint returns a well-formed summary', async () => {
   const u = await json(await req('GET', '/api/usage'));
   assert.ok(u.totals && typeof u.totals.calls === 'number');

@@ -373,6 +373,23 @@ test('frame-ancestors defaults to none; FRAME_ANCESTORS is opt-in only (V35)', (
   if (prev === undefined) delete process.env.FRAME_ANCESTORS; else process.env.FRAME_ANCESTORS = prev;
 });
 
+test('network failures become actionable messages, not "fetch failed" (V36)', () => {
+  const { normalizeNetworkError } = require('../lib/providers');
+  const cases = [
+    [{ cause: { code: 'ENOTFOUND' } }, /resolve|DNS|connection/i],
+    [{ cause: { code: 'ECONNREFUSED' } }, /refused/i],
+    [{ cause: { code: 'ECONNRESET' } }, /closed unexpectedly|network|firewall/i],
+    [{ name: 'TimeoutError' }, /did not respond in time/i],
+    [{ message: 'fetch failed' }, /Could not reach the provider/i],
+  ];
+  for (const [err, re] of cases) {
+    const out = normalizeNetworkError(err);
+    assert.equal(out.code, 'network');
+    assert.match(out.message, re);
+    assert.ok(!/^fetch failed$/i.test(out.message), 'raw "fetch failed" leaked to the user');
+  }
+});
+
 test('securityHeaders — CSP and hardening headers set', () => {
   const set = {};
   const res = { setHeader: (k, v) => { set[k.toLowerCase()] = v; } };

@@ -7,7 +7,7 @@ Delivered against the V3 master prompt ("Expert-Level AI Web UI Build Prompt"). 
 | `ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md` | The complete expert build plan (v1.1): 47 sections — architecture, full DB schema, provider layer, RAG pipeline, security/threat model, OCI deployment, CI/CD, expert review, scored rubric, production gates |
 | `ai-web-ui-plan/END_USER_REVIEW.md` | 4-persona end-user walkthrough with 14 findings and release recommendation |
 | `ai-workspace/` | **A running implementation** of the MVP core (zero npm dependencies): BYOK encrypted key vault, SSE streaming chat, PDF/text RAG with page citations, vision gating, GitHub repo Q&A, feedback + triage, usage/cost tracking — see `ai-workspace/BUILD_REVIEW.md` for the acceptance battery (12/12 green) and open production gaps |
-| `ai-workspace/SECURITY.md` | **Security review and hardening record**: 32 findings across five adversarial passes (including audits of the fixes themselves), each with severity, reproduction and remedy — plus a plainly stated residual-risk list |
+| `ai-workspace/SECURITY.md` | **Security review and hardening record**: 37 findings across seven passes (including audits of the fixes themselves), each with severity, reproduction and remedy — plus a plainly stated residual-risk list |
 
 ## Start here
 
@@ -58,7 +58,7 @@ Details and the persistence caveat: `ai-workspace/deploy/README.md`.
 
 ## Security
 
-`ai-workspace/` was reviewed as an attacker and hardened over five passes — each one also
+`ai-workspace/` was reviewed as an attacker and hardened over seven passes — each one also
 auditing the previous pass's fixes. **34 findings, all fixed**, recorded with reproductions in
 [`ai-workspace/SECURITY.md`](ai-workspace/SECURITY.md):
 
@@ -75,6 +75,10 @@ auditing the previous pass's fixes. **34 findings, all fixed**, recorded with re
 - **Pass 6 (2)** — removed the `'unsafe-inline'` CSP weakness by splitting the front end into
   external assets, and caught a temporal-dead-zone crash that the split introduced (it blanked
   the whole page, and only an executing boot test could see it)
+- **Pass 7 (3)** — a launch review walking the product as an end user and a power user
+  ([`LAUNCH_REVIEW.md`](ai-workspace/LAUNCH_REVIEW.md)): raw `"fetch failed"` on every provider
+  network error, developer field names in the most common first-run mistake, and `safeError`
+  suppressing the friendly messages it should have passed through
 
 Controls now in `lib/security.js`: shared-token auth with an HMAC session cookie, origin-bound
 CSRF, a DNS-resolving SSRF allowlist, per-IP/per-route rate limiting, a full security-header
@@ -99,7 +103,7 @@ identity or audit trail.
 
 - Plan: v1.1 complete (end-user fixes absorbed — §47 changelog)
 - Demo build: accepted as reference implementation; production blockers listed in `ai-workspace/BUILD_REVIEW.md` §3
-- Security: hardened over five adversarial passes — 32 findings, all fixed (`ai-workspace/SECURITY.md`). The build review's *"no authentication"* critical blocker is now closed for the single-tenant case; multi-user auth (roles, workspace isolation, audit trail) remains plan work
+- Security: hardened over seven passes — 37 findings, all fixed (`ai-workspace/SECURITY.md`). The build review's *"no authentication"* critical blocker is now closed for the single-tenant case; multi-user auth (roles, workspace isolation, audit trail) remains plan work
 - Tests: 48 unit + route tests, a PDF fuzzer, and a 30-check smoke gate — `npm run check`
 - CI: active at `.github/workflows/ci.yml` (tests, fuzz, smoke, CSP regression, secret scan)
 - Release: `1.0.0-rc.1` — see `ai-workspace/CHANGELOG.md`

@@ -70,7 +70,13 @@ function safeError(res, err, fallback = 'Something went wrong on our side.') {
   const status = err.status || 500;
   if (status === 413 && !res.headersSent) res.setHeader('Connection', 'close');
   // 5xx details (stack traces, provider payloads, file paths) stay server-side.
-  const message = status < 500 ? scrubSecrets(String(err.message || 'Request failed.')).slice(0, 400) : fallback;
+  // Exception: upstream-transport errors are 502s whose message is written FOR
+  // the user ("check your internet connection"). Suppressing those left people
+  // staring at "Something went wrong on our side" for a problem on their end.
+  const userFacing5xx = status === 502 && (err.code === 'network' || err.code === 'overloaded');
+  const message = (status < 500 || userFacing5xx)
+    ? scrubSecrets(String(err.message || 'Request failed.')).slice(0, 400)
+    : fallback;
   if (status >= 500) console.error('[error]', err);
   sendJson(res, status, { error: { code: err.code || 'error', message } });
 }
@@ -128,6 +134,14 @@ function buildSystemPrompt(userSystem, evidence, hasImages) {
 }
 
 async function handleChatStream(req, res, body) {
+  // A brand-new user hits this before adding any key. "Invalid credentialId" is
+  // developer language for a situation with an obvious next action.
+  if (!body.credentialId) {
+    throw sec.bad('Choose a provider key first — add one in Settings, then pick it above the message box.', 'no_credential', 400);
+  }
+  if (!body.model) {
+    throw sec.bad('Choose a model before sending a message.', 'no_model', 400);
+  }
   const credentialId = sec.assertId(body.credentialId, 'credentialId');
   const model = sec.assertString(body.model, 'model', 200);
   const conversationId = body.conversationId ? sec.assertId(body.conversationId, 'conversationId') : null;
