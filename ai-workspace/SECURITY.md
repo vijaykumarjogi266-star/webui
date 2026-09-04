@@ -10,7 +10,10 @@ Everything below was reproduced against a running instance before and after the 
 A **second-pass self-audit of the fixes themselves** (§5) found 7 more issues in the patch,
 including a real CSRF bypass and an SSRF filter bypass. A **third pass** (§6) critiqued the
 hardening for availability and correctness rather than just exploitability, and found the
-brute-force limiter had turned into a self-inflicted lockout. All fixed. Smoke gate: **27/27**.
+brute-force limiter had turned into a self-inflicted lockout. A **fourth pass** (§7) attacked
+the file parsers and found an unfixed decompression bomb. All fixed. Smoke gate: **28/28**.
+
+**This document is not a claim of "secure".** §7 lists what remains untested and unfixed.
 
 ---
 
@@ -198,3 +201,52 @@ the live sweep re-runs upload/indexing/conversation/usage after every change.
 V23 and V27 are the second failure mode: **the write-up drifted ahead of the code.** "Re-validated
 on every use" was true of the string and false of the DNS lookup, which is precisely the half
 that matters for rebinding.
+
+---
+
+## 7. Fourth pass — the parsers, and what is still not done
+
+The first three passes reviewed the HTTP surface and the patch itself. Neither looked hard at
+the code that chews on untrusted **bytes**. That turned out to be where the remaining
+vulnerability was.
+
+| # | Sev | Finding | Status |
+|---|-----|---------|--------|
+| V28 | **High** | **PDF decompression bomb.** `lib/pdf.js` called `zlib.inflateSync()` on every `/FlateDecode` stream with no output cap. ~80 KB of compressed zeros inflates to 80 MB — comfortably under the 20 MB upload limit on the way in, and allocated straight onto a heap that also holds the entire JSON store. A handful of concurrent uploads OOMs the process. Now capped with `maxOutputLength` (8 MB per stream, 64 MB per document); the 80 MB bomb is rejected in **15 ms at 4 MB heap**, and legitimate compressed PDFs still extract correctly. | Fixed |
+
+Probed and found **not** vulnerable: catastrophic backtracking in the PDF text/object regexes
+(`BT` without `ET`, unterminated objects, 20 k escape sequences — all ≤1 ms), and `/Kids`
+reference cycles in the page tree (guarded by the existing `seen` set).
+
+### Honest status
+
+Four passes found 28 issues. The trend is the point: pass 1 found 14, pass 2 found 7 *in the
+fixes*, pass 3 found 6 more, pass 4 found 1. Converging, not converged. Specifically:
+
+**Known and unfixed**
+
+1. **`script-src 'unsafe-inline'`** — the single biggest remaining weakness. The UI is one
+   self-contained HTML file, so the CSP cannot block inline script, which is exactly the
+   control that would contain an XSS if one of the ~40 `innerHTML` sites is ever wrong.
+   Fixing it means extracting the inline `<script>` into `/app.js`.
+2. **DNS-rebinding window is narrowed, not closed** (V23) — Node re-resolves inside `fetch`,
+   so a sub-millisecond flip between check and connect is still possible. Closing it needs
+   IP-pinning via a custom agent.
+3. **Rate limits are per-process, in-memory** — useless across replicas, and reset on deploy.
+4. **No CSRF token, only origin checking** — correct for modern browsers; a browser that
+   omits `Origin` on same-site POSTs would fail open (none in current support matrix).
+
+**Untested, which is not the same as safe**
+
+5. **Coverage is 11 of 30 routes.** Conversation/feedback/repo mutation paths have no
+   assertions at all.
+6. **No unit tests for the security primitives.** `isPrivateIp`, `resolveStatic`,
+   `validateImages` and the session HMAC are only exercised indirectly through HTTP.
+7. **Never run against a real provider.** No API key exists in this environment, so
+   `streamChat`, SSE framing, usage accounting and the whole provider error path are
+   unverified end-to-end.
+8. **No dependency/supply-chain risk** (zero npm deps) but also **no fuzzing** of `lib/pdf.js`,
+   which is bespoke binary parsing — historically the highest-yield target in this codebase,
+   as V28 demonstrates.
+9. **The auth model is one shared token.** No users, no roles, no audit trail, no revocation
+   beyond rotating the token. Adequate for single-tenant BYOK; not a multi-user product.

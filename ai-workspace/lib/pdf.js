@@ -6,8 +6,16 @@
 'use strict';
 const zlib = require('zlib');
 
+// Decompression-bomb guard. A PDF stream is attacker-controlled: ~80 KB of
+// FlateDecode can inflate to 80 MB+, sailing past the upload size check and
+// exhausting heap (the whole store is in memory). Cap every inflate, and cap
+// the total inflated bytes per document.
+const MAX_STREAM_INFLATED = 8 * 1024 * 1024;   // per content stream
+const MAX_DOC_INFLATED = 64 * 1024 * 1024;     // per PDF, across all streams
+
 function extractPdf(buf) {
   const src = buf.toString('latin1');
+  let inflatedTotal = 0;
   if (!src.startsWith('%PDF')) return { ok: false, error: 'Not a PDF file', pages: [] };
 
   // 1) collect indirect objects
@@ -27,9 +35,17 @@ function extractPdf(buf) {
     if (raw.endsWith('\n')) raw = raw.slice(0, -1);
     const bytes = Buffer.from(raw, 'latin1');
     if (/\/FlateDecode/.test(body.slice(0, si))) {
-      try { return zlib.inflateSync(bytes); }
-      catch { try { return zlib.inflateRawSync(bytes); } catch { return null; } }
+      if (inflatedTotal >= MAX_DOC_INFLATED) return null;
+      const budget = Math.min(MAX_STREAM_INFLATED, MAX_DOC_INFLATED - inflatedTotal);
+      // maxOutputLength makes zlib abort instead of allocating an 80 MB buffer.
+      const opts = { maxOutputLength: budget };
+      let out = null;
+      try { out = zlib.inflateSync(bytes, opts); }
+      catch { try { out = zlib.inflateRawSync(bytes, opts); } catch { return null; } }
+      if (out) inflatedTotal += out.length;
+      return out;
     }
+    if (bytes.length > MAX_STREAM_INFLATED) return null;
     return bytes;
   }
 

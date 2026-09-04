@@ -126,6 +126,33 @@ async function runCheck(base, c) {
     results.push({ name: c.name, ok: !fail, detail: fail || 'ok' });
   }
 
+  // Resource regression (V28): a PDF decompression bomb must be rejected fast
+  // and cheaply. ~80KB of FlateDecode inflates to 80MB, passing the 20MB upload cap.
+  if (!TARGET) {
+    const zlib = require('zlib');
+    const bomb = zlib.deflateSync(Buffer.alloc(80 * 1024 * 1024));
+    const pdf = Buffer.concat([
+      Buffer.from('%PDF-1.4\n1 0 obj<</Type/Page/Contents 2 0 R>>endobj\n2 0 obj<</Filter/FlateDecode>>stream\n', 'latin1'),
+      bomb, Buffer.from('\nendstream endobj', 'latin1'),
+    ]);
+    const t = Date.now();
+    let ok = false, detail = 'no response';
+    try {
+      const res = await fetch(new URL('/api/files', base), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${APP_TOKEN}` },
+        body: JSON.stringify({ name: 'bomb.pdf', dataBase64: pdf.toString('base64') }),
+        signal: AbortSignal.timeout(20000),
+      });
+      const b = await res.json().catch(() => ({}));
+      const elapsed = Date.now() - t;
+      // Must not index it, and must not spend forever doing so.
+      ok = elapsed < 15000 && (res.status >= 400 || !b.file || b.file.indexStatus !== 'ready');
+      detail = ok ? `rejected in ${elapsed}ms` : `HTTP ${res.status} indexStatus=${b?.file?.indexStatus} in ${elapsed}ms`;
+    } catch (e) { detail = 'request error: ' + e.message; }
+    results.push({ name: 'PDF decompression bomb rejected (no heap blowup)', ok, detail });
+  }
+
   // Availability regression (V22): a burst of BAD logins must not lock out the
   // legitimate token. Exploit-only tests passed this build while it was lockable.
   {

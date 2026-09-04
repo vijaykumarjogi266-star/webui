@@ -70,5 +70,5 @@ renderer XSS, missing rate limits and security headers, path traversal, secret h
 On first boot the server prints a generated access token and stores it at `data/app.token`
 (mode 0600). Paste it into the unlock prompt in the UI, or send it as
 `Authorization: Bearer <token>`. Override with `APP_TOKEN`; set `AUTH_DISABLED=true` only on a
-trusted loopback dev box. `npm run smoke` runs the 27-check gate, 20 of which are security
+trusted loopback dev box. `npm run smoke` runs the 28-check gate, 21 of which are security
 assertions. Always deploy behind TLS with `TRUST_PROXY=true` and `FORCE_HSTS=true`.
