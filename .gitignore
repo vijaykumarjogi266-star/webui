@@ -1,0 +1,8 @@
+# Runtime data — contains the encryption master key + user secrets. NEVER commit.
+ai-workspace/data/
+
+# Node / OS noise
+node_modules/
+*.log
+.DS_Store
+tests/

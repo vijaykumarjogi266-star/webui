@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Workspace</title>
+<style>
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --raised: #fbfbfc; --border: #e3e6ea;
+  --text: #17202b; --text-2: #5b6572; --text-3: #8a93a0;
+  --primary: #4f46e5; --primary-weak: #eef0ff; --primary-text: #ffffff;
+  --success: #0e9f6e; --success-bg: #e7f7f0; --warn: #b45309; --warn-bg: #fdf3e3;
+  --danger: #dc2626; --danger-bg: #fdecec; --info-bg: #eaf3fd; --info: #1d6fce;
+  --radius: 12px; --radius-s: 8px; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+html.dark {
+  --bg: #0d1117; --surface: #161b22; --raised: #1c2230; --border: #2a3140;
+  --text: #e6e9ee; --text-2: #9aa4b2; --text-3: #6b7480;
+  --primary: #6d6af8; --primary-weak: #232347; --primary-text: #ffffff;
+  --success-bg: #10312a; --warn-bg: #33260f; --danger-bg: #3a1517; --info-bg: #14263c;
+  --shadow: 0 1px 3px rgba(0,0,0,.5);
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif; background: var(--bg); color: var(--text); }
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--primary); }
+h1 { font-size: 20px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 0 0 10px; } h3 { font-size: 14px; margin: 0 0 8px; }
+.muted { color: var(--text-2); } .faint { color: var(--text-3); }
+.app { display: grid; grid-template-columns: 232px 1fr; height: 100vh; }
+/* sidebar */
+.sidebar { background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; padding: 14px 10px; gap: 2px; }
+.brand { display: flex; align-items: center; gap: 8px; padding: 4px 10px 14px; font-weight: 700; font-size: 15px; }
+.brand .logo { width: 26px; height: 26px; border-radius: 7px; background: var(--primary); color: #fff; display: grid; place-items: center; font-size: 13px; font-weight: 800; }
+.nav-item { display: flex; align-items: center; gap: 9px; padding: 8px 10px; border-radius: var(--radius-s); color: var(--text-2); cursor: pointer; border: none; background: none; width: 100%; text-align: left; font-weight: 500; }
+.nav-item:hover { background: var(--raised); color: var(--text); }
+.nav-item.active { background: var(--primary-weak); color: var(--primary); }
+.nav-item svg { width: 16px; height: 16px; flex: none; }
+.sidebar .spacer { flex: 1; }
+.side-foot { border-top: 1px solid var(--border); padding-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+/* main */
+.main { display: flex; flex-direction: column; min-width: 0; height: 100vh; }
+.page { padding: 26px 30px; overflow-y: auto; flex: 1; }
+.page.wide { padding: 0; overflow: hidden; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 18px; margin-bottom: 16px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.row.between { justify-content: space-between; }
+/* controls */
+.btn { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: var(--radius-s); padding: 7px 14px; cursor: pointer; font-weight: 600; font-size: 13px; }
+.btn:hover { background: var(--raised); }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-text); }
+.btn.primary:hover { filter: brightness(1.08); background: var(--primary); }
+.btn.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--border)); }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--text-2); }
+.btn.ghost:hover { background: var(--raised); color: var(--text); }
+.btn.sm { padding: 4px 10px; font-size: 12px; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.input, select.input, textarea.input { width: 100%; padding: 8px 11px; border-radius: var(--radius-s); border: 1px solid var(--border); background: var(--raised); outline: none; }
+.input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
+label.lbl { display: block; font-size: 12px; font-weight: 600; color: var(--text-2); margin: 12px 0 5px; text-transform: uppercase; letter-spacing: .04em; }
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; border-radius: 999px; padding: 2px 9px; border: 1px solid var(--border); color: var(--text-2); background: var(--raised); white-space: nowrap; }
+.badge.green { background: var(--success-bg); color: var(--success); border-color: transparent; }
+.badge.amber { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+.badge.red { background: var(--danger-bg); color: var(--danger); border-color: transparent; }
+.badge.blue { background: var(--info-bg); color: var(--info); border-color: transparent; }
+.badge.violet { background: var(--primary-weak); color: var(--primary); border-color: transparent; }
+table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th { text-align: left; color: var(--text-3); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.tbl td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.tbl tr:last-child td { border-bottom: none; }
+.empty { text-align: center; color: var(--text-2); padding: 38px 16px; }
+.empty .big { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+/* chat */
+.chat-wrap { display: grid; grid-template-columns: 250px 1fr; height: 100%; }
+.convo-panel { border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; padding: 12px; }
+.convo-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.convo { padding: 8px 10px; border-radius: var(--radius-s); cursor: pointer; color: var(--text-2); display: flex; justify-content: space-between; gap: 6px; align-items: center; }
+.convo:hover { background: var(--raised); }
+.convo.active { background: var(--primary-weak); color: var(--primary); }
+.convo .del { visibility: hidden; border: none; background: none; color: var(--text-3); cursor: pointer; padding: 2px; }
+.convo:hover .del { visibility: visible; }
+.convo .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; font-size: 13px; }
+.chat-col { display: flex; flex-direction: column; min-width: 0; background: var(--bg); }
+.chat-topbar { display: flex; gap: 10px; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface); flex-wrap: wrap; }
+.chat-topbar select { max-width: 260px; }
+.thread { flex: 1; overflow-y: auto; padding: 22px 0; }
+.msg { max-width: 820px; margin: 0 auto 20px; padding: 0 22px; }
+.msg .who { font-size: 12px; font-weight: 700; color: var(--text-3); margin-bottom: 5px; text-transform: uppercase; letter-spacing: .04em; }
+.bubble { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 13px 16px; box-shadow: var(--shadow); overflow-wrap: break-word; }
+.bubble.user { background: var(--primary-weak); border-color: transparent; }
+.bubble.failed { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+.bubble pre { background: var(--raised); border: 1px solid var(--border); border-radius: var(--radius-s); padding: 12px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; position: relative; }
+.bubble code.inline { background: var(--raised); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; font-family: var(--mono); font-size: 12.5px; }
+.bubble h1,.bubble h2,.bubble h3 { margin: 14px 0 6px; } .bubble h1{font-size:17px} .bubble h2{font-size:15px} .bubble h3{font-size:14px}
+.bubble p { margin: 7px 0; } .bubble ul,.bubble ol { margin: 7px 0; padding-left: 22px; }
+.bubble blockquote { border-left: 3px solid var(--border); margin: 8px 0; padding: 2px 12px; color: var(--text-2); }
+.bubble table { border-collapse: collapse; margin: 8px 0; } .bubble th,.bubble td { border: 1px solid var(--border); padding: 5px 9px; font-size: 13px; }
+.meta-line { display: flex; gap: 8px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+.cite { font-size: 11px; background: var(--info-bg); color: var(--info); border-radius: 999px; padding: 2px 8px; font-weight: 600; }
+.cursor { display: inline-block; width: 8px; height: 15px; background: var(--primary); animation: blink 1s infinite; vertical-align: -2px; border-radius: 2px; }
+@keyframes blink { 50% { opacity: .15; } }
+.composer-wrap { border-top: 1px solid var(--border); background: var(--surface); padding: 12px 16px 14px; }
+.composer { max-width: 820px; margin: 0 auto; }
+.attach-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; border: 1px solid var(--border); background: var(--raised); border-radius: 999px; padding: 3px 6px 3px 10px; font-weight: 500; }
+.chip button { border: none; background: none; cursor: pointer; color: var(--text-3); font-size: 13px; line-height: 1; padding: 0 3px; }
+.chip.on { border-color: var(--primary); background: var(--primary-weak); color: var(--primary); }
+.composer-box { display: flex; gap: 8px; align-items: flex-end; }
+.composer-box textarea { flex: 1; min-height: 44px; max-height: 180px; resize: vertical; }
+.vision-warn { background: var(--warn-bg); color: var(--warn); border-radius: var(--radius-s); padding: 8px 12px; font-size: 13px; margin-bottom: 8px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+/* attach picker */
+.picker { position: relative; display: inline-block; }
+.picker-menu { position: absolute; bottom: calc(100% + 6px); left: 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px; min-width: 280px; max-height: 260px; overflow-y: auto; z-index: 30; }
+.picker-item { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+.picker-item:hover { background: var(--raised); }
+/* toast */
+#toasts { position: fixed; bottom: 18px; right: 18px; display: flex; flex-direction: column; gap: 8px; z-index: 100; }
+.toast { background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: var(--radius-s); font-size: 13px; font-weight: 500; box-shadow: var(--shadow); max-width: 380px; }
+.toast.err { background: var(--danger); color: #fff; }
+/* modal */
+.modal-back { position: fixed; inset: 0; background: rgba(10,14,20,.55); display: grid; place-items: center; z-index: 60; padding: 20px; }
+.modal { background: var(--surface); border-radius: 16px; padding: 26px; width: 100%; max-width: 520px; box-shadow: var(--shadow); max-height: 90vh; overflow-y: auto; }
+.steps { display: flex; gap: 6px; margin-bottom: 18px; }
+.steps .dot { width: 26px; height: 4px; border-radius: 2px; background: var(--border); }
+.steps .dot.on { background: var(--primary); }
+.advanced { border-top: 1px solid var(--border); margin-top: 8px; padding-top: 8px; }
+kbd { background: var(--raised); border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; font-size: 11px; font-family: var(--mono); }
+.file-drop { border: 2px dashed var(--border); border-radius: var(--radius); padding: 26px; text-align: center; color: var(--text-2); cursor: pointer; }
+.file-drop:hover, .file-drop.over { border-color: var(--primary); background: var(--primary-weak); color: var(--primary); }
+.code-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-3); padding: 5px 12px; border: 1px solid var(--border); border-bottom: none; border-radius: var(--radius-s) var(--radius-s) 0 0; background: var(--raised); font-family: var(--mono); }
+.code-head + pre { border-radius: 0 0 var(--radius-s) var(--radius-s); margin-top: 0; }
+@media (max-width: 900px) { .app { grid-template-columns: 1fr; } .sidebar { display: none; } .chat-wrap { grid-template-columns: 1fr; } .convo-panel { display: none; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><span class="logo">A</span> AI Workspace</div>
+    <button class="nav-item active" data-view="chat" id="nav-chat"></button>
+    <button class="nav-item" data-view="files" id="nav-files"></button>
+    <button class="nav-item" data-view="github" id="nav-github"></button>
+    <button class="nav-item" data-view="feedback" id="nav-feedback"></button>
+    <button class="nav-item" data-view="usage" id="nav-usage"></button>
+    <button class="nav-item" data-view="settings" id="nav-settings"></button>
+    <div class="spacer"></div>
+    <div class="side-foot">
+      <button class="nav-item" id="theme-toggle"></button>
+      <div class="faint" style="padding:6px 10px;font-size:11px">Demo build · keys stay on this server, encrypted</div>
+    </div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<div id="toasts"></div>
+<div id="modal-root"></div>
+<script>
+'use strict';
+/* ============ state ============ */
+const S = {
+  view: 'chat', credentials: [], conversations: [], files: [], repos: [],
+  modelsByCred: {}, currentConvo: null, messages: [],
+  selCred: localStorage.getItem('selCred') || null, selModel: localStorage.getItem('selModel') || null,
+  attachedFiles: new Set(), attachedRepos: new Set(), attachedImages: [],
+  streaming: false, abort: null, feedback: [], usage: null,
+  sysPromptOpen: false, systemPrompt: '', temperature: 0.7,
+};
+const ICONS = {
+  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  files: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>',
+  github: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>',
+  feedback: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>',
+  usage: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>',
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.2 4.2l1.4 1.4m12.8 12.8 1.4 1.4M1 12h2m18 0h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/></svg>',
+};
+document.getElementById('nav-chat').innerHTML = ICONS.chat + ' Chat';
+document.getElementById('nav-files').innerHTML = ICONS.files + ' Files';
+document.getElementById('nav-github').innerHTML = ICONS.github + ' GitHub';
+document.getElementById('nav-feedback').innerHTML = ICONS.feedback + ' Feedback';
+document.getElementById('nav-usage').innerHTML = ICONS.usage + ' Usage';
+document.getElementById('nav-settings').innerHTML = ICONS.settings + ' Provider settings';
+const themeBtn = document.getElementById('theme-toggle');
+function applyTheme() {
+  const dark = localStorage.getItem('theme') === 'dark';
+  document.documentElement.classList.toggle('dark', dark);
+  themeBtn.innerHTML = (dark ? ICONS.sun : ICONS.moon) + (dark ? ' Light mode' : ' Dark mode');
+}
+themeBtn.onclick = () => { localStorage.setItem('theme', localStorage.getItem('theme') === 'dark' ? 'light' : 'dark'); applyTheme(); };
+applyTheme();
+
+/* ============ utils ============ */
+const $ = (sel, el = document) => el.querySelector(sel);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function toast(msg, isErr) {
+  const t = document.createElement('div'); t.className = 'toast' + (isErr ? ' err' : ''); t.textContent = msg;
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(() => t.remove(), 5200);
+}
+async function api(method, url, body) {
+  const res = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j?.error?.message || ('Request failed (' + res.status + ')'));
+  return j;
+}
+function fmtBytes(n) { if (!n) return ''; return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.ceil(n / 1024) + ' KB'; }
+function timeAgo(iso) { const d = (Date.now() - new Date(iso)) / 1000; if (d < 60) return 'just now'; if (d < 3600) return Math.floor(d / 60) + 'm ago'; if (d < 86400) return Math.floor(d / 3600) + 'h ago'; return new Date(iso).toLocaleDateString(); }
+function statusBadge(st) {
+  const map = { connected: ['green', 'Connected'], failed: ['red', 'Failed'], not_tested: ['amber', 'Not tested'], rate_limited: ['amber', 'Rate limited'], ready: ['green', 'Ready'], processing: ['blue', 'Processing…'], pending: ['amber', 'Pending'], indexing: ['blue', 'Indexing…'], failed: ['red', 'Failed'], not_indexed: ['amber', 'Not indexed'] };
+  const [c, l] = map[st] || ['', st]; return `<span class="badge ${c}">${esc(l)}</span>`;
+}
+/* markdown (safe: extracts code fences first, then escapes everything) */
+function md(text) {
+  const store = [];
+  let s = String(text ?? '').replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+    store.push({ lang: lang || '', code });
+    return '\x00C' + (store.length - 1) + '\x00';
+  });
+  s = esc(s);
+  s = s.replace(/`([^`\n]+)`/g, '<code class="inline">$1</code>');
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|\W)\*([^*\n]+)\*(?=\W|$)/g, '$1<em>$2</em>');
+  s = s.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+  s = s.replace(/^######?\s?(.+)$/gm, '<h3>$1</h3>').replace(/^#####\s?(.+)$/gm, '<h3>$1</h3>');
+  s = s.replace(/^####\s?(.+)$/gm, '<h3>$1</h3>').replace(/^###\s?(.+)$/gm, '<h3>$1</h3>');
+  s = s.replace(/^##\s?(.+)$/gm, '<h2>$1</h2>').replace(/^#\s?(.+)$/gm, '<h1>$1</h1>');
+  s = s.replace(/^&gt;\s?(.+)$/gm, '<blockquote>$1</blockquote>');
+  s = s.replace(/^[-*]\s+(.+)$/gm, '<li>$1</li>');
+  s = s.replace(/(<li>.*<\/li>\n?)+/g, (m) => '<ul>' + m + '</ul>');
+  s = s.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+  s = s.replace(/\n{2,}/g, '</p><p>');
+  s = '<p>' + s + '</p>';
+  s = s.replace(/\x00C(\d+)\x00/g, (_, i) => {
+    const b = store[+i];
+    return '<div class="code-head"><span>' + esc(b.lang || 'code') + '</span><button class="copy-code btn ghost sm">Copy</button></div><pre><code>' + esc(b.code) + '</code></pre>';
+  });
+  return s;
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('.copy-code');
+  if (b) { const code = b.closest('.code-head').nextElementSibling.innerText; navigator.clipboard.writeText(code).then(() => toast('Copied to clipboard')); }
+});
+/* ============ views ============ */
+const NAVS = ['chat', 'files', 'github', 'feedback', 'usage', 'settings'];
+function setView(v) {
+  S.view = v;
+  NAVS.forEach((n) => document.querySelector(`[data-view="${n}"]`).classList.toggle('active', n === v));
+  render();
+}
+NAVS.forEach((n) => document.querySelector(`[data-view="${n}"]`).onclick = () => setView(n));
+
+function render() {
+  const main = $('#main');
+  if (S.view === 'chat') return renderChat(main);
+  main.className = 'main';
+  if (S.view === 'files') return renderFiles(main);
+  if (S.view === 'github') return renderGithub(main);
+  if (S.view === 'feedback') return renderFeedback(main);
+  if (S.view === 'usage') return renderUsage(main);
+  if (S.view === 'settings') return renderSettings(main);
+}
+
+/* ============ chat view ============ */
+function renderChat(main) {
+  main.className = 'main wide';
+  main.innerHTML = `
+  <div class="chat-wrap">
+    <div class="convo-panel">
+      <button class="btn primary" style="margin-bottom:10px" id="new-chat">+ New chat</button>
+      <div class="convo-list" id="convo-list"></div>
+    </div>
+    <div class="chat-col">
+      <div class="chat-topbar" id="chat-topbar"></div>
+      <div class="thread" id="thread"></div>
+      <div class="composer-wrap"><div class="composer" id="composer"></div></div>
+    </div>
+  </div>`;
+  $('#new-chat').onclick = () => { S.currentConvo = null; S.messages = []; S.attachedFiles.clear(); S.attachedRepos.clear(); S.attachedImages = []; renderChat(main); };
+  renderConvoList(); renderTopbar(); renderThread(); renderComposer();
+}
+function renderConvoList() {
+  const el = $('#convo-list'); if (!el) return;
+  el.innerHTML = S.conversations.map((c) => `
+    <div class="convo ${S.currentConvo === c.id ? 'active' : ''}" data-id="${c.id}">
+      <span class="t">${esc(c.title)}</span>
+      <button class="del" data-del="${c.id}" title="Delete">✕</button>
+    </div>`).join('') || '<div class="faint" style="padding:12px;font-size:12.5px">No conversations yet</div>';
+  el.querySelectorAll('.convo').forEach((d) => d.onclick = async (e) => {
+    if (e.target.dataset.del) return;
+    const { conversation, messages } = await api('GET', '/api/conversations/' + d.dataset.id);
+    S.currentConvo = conversation.id; S.messages = messages;
+    if (conversation.model) { S.selModel = conversation.model; }
+    renderConvoList(); renderThread(); renderComposer();
+  });
+  el.querySelectorAll('[data-del]').forEach((b) => b.onclick = async (e) => {
+    e.stopPropagation();
+    if (!confirm('Delete this conversation? This can\u2019t be undone.')) return;
+    await api('DELETE', '/api/conversations/' + b.dataset.del);
+    await bootstrap();
+    if (S.currentConvo === b.dataset.del) { S.currentConvo = null; S.messages = []; }
+    renderChat($('#main'));
+  });
+}
+function currentModels() { return S.selCred ? (S.modelsByCred[S.selCred] || []) : []; }
+function selModelInfo() { return currentModels().find((m) => m.id === S.selModel) || null; }
+
+function renderTopbar() {
+  const bar = $('#chat-topbar'); if (!bar) return;
+  const credOpts = S.credentials.map((c) => `<option value="${c.id}" ${c.id === S.selCred ? 'selected' : ''}>${esc(c.provider === 'custom' ? (c.displayName || c.baseUrl) : c.provider[0].toUpperCase() + c.provider.slice(1))} · ${esc(c.masked)}</option>`).join('');
+  const models = currentModels();
+  const modelOpts = models.map((m) => `<option value="${esc(m.id)}" ${m.id === S.selModel ? 'selected' : ''}>${esc(m.name)}${m.vision ? '' : ' (text)'}${m.context ? ' · ' + Math.round(m.context / 1024) + 'k' : ''}</option>`).join('');
+  const info = selModelInfo();
+  bar.innerHTML = `
+    <select class="input" id="sel-cred" style="width:220px"><option value="">Provider…</option>${credOpts}</select>
+    <select class="input" id="sel-model" style="width:280px"><option value="">Model…</option>${modelOpts}</select>
+    ${info ? `<span class="badge ${info.vision ? 'green' : ''}">${info.vision ? 'vision' : 'text-only'}</span>` : ''}
+    ${info && info.context ? `<span class="badge">${Math.round(info.context / 1024)}k ctx</span>` : ''}
+    ${info && info.inputCostPerMtok != null ? `<span class="badge">$${info.inputCostPerMtok}/$${info.outputCostPerMtok} per Mtok</span>` : ''}
+    <span style="flex:1"></span>
+    <button class="btn ghost sm" id="adv-toggle">⚙ ${S.sysPromptOpen ? 'Hide' : 'Advanced'}</button>`;
+  $('#sel-cred').onchange = async (e) => {
+    S.selCred = e.target.value || null; localStorage.setItem('selCred', S.selCred || '');
+    S.selModel = null;
+    if (S.selCred && !S.modelsByCred[S.selCred]) {
+      try { const r = await api('GET', '/api/models?cred=' + S.selCred); S.modelsByCred[S.selCred] = r.models; }
+      catch (err) { toast(err.message, true); }
+    }
+    renderTopbar(); renderComposer();
+  };
+  $('#sel-model').onchange = (e) => { S.selModel = e.target.value || null; localStorage.setItem('selModel', S.selModel || ''); renderTopbar(); renderComposer(); };
+  $('#adv-toggle').onclick = () => { S.sysPromptOpen = !S.sysPromptOpen; renderTopbar(); renderComposer(); };
+}
+function visionBlocked() {
+  const info = selModelInfo();
+  return S.attachedImages.length > 0 && info && info.vision === false;
+}
+function renderComposer() {
+  const el = $('#composer'); if (!el) return;
+  const filesReady = S.files.filter((f) => f.indexStatus === 'ready');
+  const reposReady = S.repos.filter((r) => r.status === 'ready');
+  const chip = (id, label, set, kind) => `<span class="chip ${set.has(id) ? 'on' : ''}" data-toggle="${kind}:${id}">${esc(label)} <button data-rm="${kind}:${id}">✕</button></span>`;
+  const attached = [
+    ...[...S.attachedFiles].map((id) => { const f = S.files.find((x) => x.id === id); return f ? chip(id, '📄 ' + f.name, S.attachedFiles, 'f') : ''; }),
+    ...[...S.attachedRepos].map((id) => { const r = S.repos.find((x) => x.id === id); return r ? chip(id, '⌥ ' + r.owner + '/' + r.repo, S.attachedRepos, 'r') : ''; }),
+    ...S.attachedImages.map((im, i) => `<span class="chip">🖼 ${esc(im.name)} <button data-rmimg="${i}">✕</button></span>`),
+  ].join('');
+  const visionWarn = visionBlocked()
+    ? `<div class="vision-warn"><span>⚠ This model can\u2019t analyze images. Choose a vision-capable model.</span><button class="btn sm" id="filter-vision">Show vision models</button></div>` : '';
+  const advanced = S.sysPromptOpen ? `
+    <div class="advanced">
+      <label class="lbl" style="margin-top:0">System prompt</label>
+      <textarea class="input" id="sys-prompt" rows="3" placeholder="Leave empty for the built-in grounded-assistant prompt">${esc(S.systemPrompt)}</textarea>
+      <div class="row" style="margin-top:8px">
+        <label class="faint" style="font-size:12px">Temperature <span id="temp-val">${S.temperature}</span></label>
+        <input type="range" min="0" max="1.5" step="0.1" value="${S.temperature}" id="temp" style="width:160px">
+      </div>
+    </div>` : '';
+  el.innerHTML = `
+    ${attached ? `<div class="attach-row">${attached}</div>` : ''}
+    ${visionWarn}
+    <div class="composer-box">
+      <div class="picker">
+        <button class="btn" id="attach-btn" title="Attach context">＋ Attach</button>
+        <div class="picker-menu" id="attach-menu" hidden>
+          <div class="faint" style="font-size:11px;padding:2px 8px;text-transform:uppercase;letter-spacing:.04em">Indexed files</div>
+          ${filesReady.length ? filesReady.map((f) => `<div class="picker-item" data-pf="${f.id}"><input type="checkbox" ${S.attachedFiles.has(f.id) ? 'checked' : ''}> 📄 ${esc(f.name)}</div>`).join('') : '<div class="faint" style="padding:4px 8px;font-size:12px">No indexed files yet — upload on the Files page.</div>'}
+          <div class="faint" style="font-size:11px;padding:8px 8px 2px;text-transform:uppercase;letter-spacing:.04em">GitHub repos</div>
+          ${reposReady.length ? reposReady.map((r) => `<div class="picker-item" data-pr="${r.id}"><input type="checkbox" ${S.attachedRepos.has(r.id) ? 'checked' : ''}> ⌥ ${esc(r.owner + '/' + r.repo)}</div>`).join('') : '<div class="faint" style="padding:4px 8px;font-size:12px">No indexed repos yet — connect on the GitHub page.</div>'}
+          <div class="picker-item" data-img="1" style="border-top:1px solid var(--border);margin-top:6px">🖼 Upload an image…</div>
+        </div>
+        <input type="file" id="img-input" accept="image/png,image/jpeg,image/webp,image/gif" hidden multiple>
+      </div>
+      <textarea class="input" id="msg" placeholder="Message the assistant… (Enter to send, Shift+Enter for newline)"></textarea>
+      ${S.streaming
+        ? '<button class="btn danger" id="stop-btn">■ Stop</button>'
+        : '<button class="btn primary" id="send-btn">Send</button>'}
+    </div>
+    ${advanced}`;
+  const ta = $('#msg');
+  ta.focus();
+  ta.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); } };
+  const send = $('#send-btn'); if (send) send.onclick = doSend;
+  const stop = $('#stop-btn'); if (stop) stop.onclick = () => S.abort && S.abort.abort();
+  $('#attach-btn').onclick = (e) => { e.stopPropagation(); $('#attach-menu').hidden = !$('#attach-menu').hidden; };
+  document.onclick = () => { const m = $('#attach-menu'); if (m) m.hidden = true; };
+  $('#attach-menu').onclick = (e) => e.stopPropagation();
+  $('#attach-menu').querySelectorAll('[data-pf]').forEach((d) => d.onclick = () => { const id = d.dataset.pf; S.attachedFiles.has(id) ? S.attachedFiles.delete(id) : S.attachedFiles.add(id); renderComposer(); $('#attach-menu').hidden = false; });
+  $('#attach-menu').querySelectorAll('[data-pr]').forEach((d) => d.onclick = () => { const id = d.dataset.pr; S.attachedRepos.has(id) ? S.attachedRepos.delete(id) : S.attachedRepos.add(id); renderComposer(); $('#attach-menu').hidden = false; });
+  $('#attach-menu').querySelector('[data-img]').onclick = () => $('#img-input').click();
+  $('#img-input').onchange = async (e) => {
+    for (const f of e.target.files) {
+      if (f.size > 10 * 1024 * 1024) { toast(`${f.name} is over the 10 MB image limit.`, true); continue; }
+      const dataUrl = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
+      S.attachedImages.push({ name: f.name, dataUrl });
+    }
+    renderComposer();
+  };
+  el.querySelectorAll('[data-rm]').forEach((b) => b.onclick = () => {
+    const [kind, id] = b.dataset.rm.split(':');
+    (kind === 'f' ? S.attachedFiles : S.attachedRepos).delete(id); renderComposer();
+  });
+  el.querySelectorAll('[data-rmimg]').forEach((b) => b.onclick = () => { S.attachedImages.splice(+b.dataset.rmimg, 1); renderComposer(); });
+  const fv = $('#filter-vision');
+  if (fv) fv.onclick = () => {
+    const vis = currentModels().filter((m) => m.vision);
+    if (!vis.length) { toast('This provider has no vision-capable models listed.', true); return; }
+    S.selModel = vis[0].id; localStorage.setItem('selModel', S.selModel); renderTopbar(); renderComposer();
+    toast('Switched to ' + vis[0].name);
+  };
+  const sp = $('#sys-prompt'); if (sp) sp.oninput = (e) => S.systemPrompt = e.target.value;
+  const tp = $('#temp'); if (tp) tp.oninput = (e) => { S.temperature = +e.target.value; $('#temp-val').textContent = S.temperature.toFixed(1); };
+}
+async function doSend() {
+  if (S.streaming) return;
+  const ta = $('#msg'); const text = ta.value.trim();
+  if (!text) return;
+  if (!S.selCred || !S.selModel) { toast('Pick a provider and model first — add an API key in Provider settings if needed.', true); return; }
+  if (visionBlocked()) { toast('This model can\u2019t analyze images. Choose a vision-capable model.', true); return; }
+  if (!S.currentConvo) {
+    const { conversation } = await api('POST', '/api/conversations', {});
+    S.currentConvo = conversation.id; S.messages = [];
+  }
+  const userMsg = { id: 'tmp-u', role: 'user', content: text, images: S.attachedImages.map((i) => i.name), at: new Date().toISOString() };
+  S.messages.push(userMsg);
+  const payload = {
+    credentialId: S.selCred, model: S.selModel, conversationId: S.currentConvo, message: text,
+    systemPrompt: S.systemPrompt || undefined, temperature: S.temperature,
+    fileIds: [...S.attachedFiles], repoIds: [...S.attachedRepos], images: S.attachedImages,
+  };
+  S.attachedImages = [];
+  S.streaming = true;
+  const asst = { id: 'tmp-a', role: 'assistant', content: '', status: 'streaming', citations: [] };
+  S.messages.push(asst);
+  renderThread(); renderComposer();
+  S.abort = new AbortController();
+  try {
+    const resp = await fetch('/api/chat/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: S.abort.signal });
+    if (!resp.ok) { const j = await resp.json().catch(() => ({})); throw new Error(j?.error?.message || 'Request failed'); }
+    const reader = resp.body.getReader(); const dec = new TextDecoder();
+    let buf = '', ev = 'message';
+    const handle = (line) => {
+      if (line.startsWith('event:')) { ev = line.slice(6).trim(); return; }
+      if (!line.startsWith('data:')) return;
+      let d; try { d = JSON.parse(line.slice(5)); } catch { return; }
+      if (ev === 'start') { asst.citations = d.citations || []; renderThread(); }
+      if (ev === 'delta') { asst.content += d.text; streamPaint(); }
+      if (ev === 'usage') { asst.usage = d; }
+      if (ev === 'error') { asst.status = 'failed'; asst.error = d.message; }
+      if (ev === 'done') { asst.status = 'complete'; }
+    };
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split('\n'); buf = lines.pop();
+      for (const l of lines) handle(l);
+    }
+    if (asst.status === 'streaming') asst.status = 'complete';
+  } catch (err) {
+    if (err.name === 'AbortError') { asst.status = asst.content ? 'complete' : 'failed'; if (!asst.content) asst.error = 'Generation stopped.'; }
+    else { asst.status = 'failed'; asst.error = err.message; }
+  }
+  S.streaming = false;
+  renderThread(); renderComposer();
+  await bootstrap(true);
+  renderConvoList();
+}
+let streamEl = null;
+function streamPaint() {
+  if (!streamEl) return;
+  const msg = S.messages[S.messages.length - 1];
+  streamEl.textContent = msg.content;
+  const th = $('#thread'); if (th) th.scrollTop = th.scrollHeight;
+}
+function pickDefaultModel(models) {
+  if (!models || !models.length) return null;
+  const free = models.find((m) => /(^|\/)[\w.-]+:free$/.test(m.id));
+  if (free) return free;
+  const pref = models.find((m) => /gpt-4o-mini|llama-3\.3-70b|llama-3\.1-8b|gemini.*flash|claude-3\.5/.test(m.id));
+  return pref || models[0];
+}
+function renderThread() {
+  const th = $('#thread'); if (!th) return;
+  if (!S.messages.length) {
+    const hasCred = S.credentials.length > 0;
+    th.innerHTML = `<div class="empty" style="margin-top:12vh">
+      <div class="big">${hasCred ? 'Start a conversation' : 'Set up a provider to start chatting'}</div>
+      <div>${hasCred ? 'Pick a model above, attach files or repos with ＋ Attach, and ask away.' : 'Add an OpenRouter or Groq API key in Provider settings — takes about a minute.'}</div>
+      ${hasCred ? '' : '<button class="btn primary" style="margin-top:14px" onclick="setView(\'settings\')">Open provider settings</button>'}
+    </div>`;
+    return;
+  }
+  th.innerHTML = S.messages.map((m, i) => {
+    if (m.role === 'user') {
+      const atts = [...(m.fileIds || []).map((id) => { const f = S.files.find((x) => x.id === id); return f ? `<span class="cite">📄 ${esc(f.name)}</span>` : ''; }),
+                    ...(m.repoIds || []).map((id) => { const r = S.repos.find((x) => x.id === id); return r ? `<span class="cite">⌥ ${esc(r.owner + '/' + r.repo)}</span>` : ''; }),
+                    ...(m.images || []).map((n) => `<span class="cite">🖼 ${esc(n)}</span>`)].join(' ');
+      return `<div class="msg"><div class="who">You</div><div class="bubble user">${esc(m.content).replace(/\n/g, '<br>')}</div>${atts ? `<div class="meta-line">${atts}</div>` : ''}</div>`;
+    }
+    const isStreaming = m.status === 'streaming';
+    const body = isStreaming
+      ? `<div class="stream-target" style="white-space:pre-wrap"></div><span class="cursor"></span>`
+      : (m.status === 'failed' && !m.content ? `<span style="color:var(--danger)">${esc(m.error || 'The request failed.')}</span>` : md(m.content));
+    const cites = (m.citations || []).map((c) => `<span class="cite">${c.type === 'repo' ? '⌥ ' + esc(c.page) : '📄 ' + esc(c.source) + ' · p.' + c.page}</span>`).join(' ');
+    const usage = m.usage ? `<span class="faint" style="font-size:11px">${m.usage.input + m.usage.output} tokens${m.usage.cost != null ? ' · $' + m.usage.cost : ''}${m.usage.estimated ? ' (est.)' : ''}</span>` : (m.inputTokens ? `<span class="faint" style="font-size:11px">${(m.inputTokens + m.outputTokens)} tokens</span>` : '');
+    return `<div class="msg"><div class="who">Assistant ${m.model ? '<span class="faint" style="font-weight:400">· ' + esc(m.model) + '</span>' : ''}</div>
+      <div class="bubble ${m.status === 'failed' ? 'failed' : ''}">${body}${m.status === 'failed' && m.content ? `<div class="faint" style="margin-top:6px;font-size:12px">⚠ ${esc(m.error || 'Interrupted')}</div>` : ''}</div>
+      ${cites || usage ? `<div class="meta-line">${cites}${usage}</div>` : ''}</div>`;
+  }).join('');
+  const last = S.messages[S.messages.length - 1];
+  if (last && last.role === 'assistant' && last.status === 'streaming') {
+    streamEl = th.querySelector('.stream-target');
+  } else streamEl = null;
+  th.scrollTop = th.scrollHeight;
+}
+
+/* ============ files view ============ */
+function renderFiles(main) {
+  main.innerHTML = `<div class="page">
+    <h1>Files</h1><div class="muted" style="margin-bottom:16px">Upload PDFs and text documents, then attach them to chats for grounded answers with page citations.</div>
+    <div class="card">
+      <div class="file-drop" id="drop">
+        <div style="font-weight:600;margin-bottom:4px">Drop files here or click to browse</div>
+        <div class="faint" style="font-size:12.5px">PDF · TXT · MD · CSV · JSON · code files — up to 50 MB. Processed on this server; sent to a provider only when you ask about them.</div>
+      </div>
+      <input type="file" id="file-input" hidden multiple accept=".pdf,.txt,.md,.markdown,.csv,.json,.js,.ts,.tsx,.jsx,.py,.java,.go,.rs,.sql,.yml,.yaml,.html,.css,.sh,.c,.cpp,.rb,.php">
+    </div>
+    <div class="card" style="padding:6px 18px">
+      <table class="tbl"><thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Pages</th><th>Chunks</th><th>Status</th><th></th></tr></thead>
+      <tbody id="file-rows"></tbody></table>
+      ${S.files.length ? '' : '<div class="empty"><div class="big">No files yet</div><div>Uploaded files are chunked and indexed locally so the assistant can quote them back to you.</div></div>'}
+    </div>
+  </div>`;
+  const drop = $('#drop'), inp = $('#file-input');
+  drop.onclick = () => inp.click();
+  drop.ondragover = (e) => { e.preventDefault(); drop.classList.add('over'); };
+  drop.ondragleave = () => drop.classList.remove('over');
+  drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove('over'); uploadFiles(e.dataTransfer.files); };
+  inp.onchange = () => uploadFiles(inp.files);
+  renderFileRows();
+}
+function renderFileRows() {
+  const el = $('#file-rows'); if (!el) return;
+  el.innerHTML = S.files.map((f) => `<tr>
+    <td style="font-weight:600">${esc(f.name)}${f.error ? `<div class="faint" style="font-size:11.5px;color:var(--danger)">${esc(f.error)}</div>` : ''}</td>
+    <td><span class="badge">${esc(f.kind)}</span></td><td class="faint">${fmtBytes(f.byteSize)}</td>
+    <td>${f.pages ?? '—'}</td><td>${f.chunks || '—'}</td><td>${statusBadge(f.indexStatus)}</td>
+    <td><button class="btn ghost sm" data-delf="${f.id}">Delete</button></td></tr>`).join('');
+  el.querySelectorAll('[data-delf]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Delete this file and all of its extracted text, chunks, and index entries? This can\u2019t be undone.')) return;
+    await api('DELETE', '/api/files/' + b.dataset.delf);
+    await bootstrap(); render(); toast('File deleted, including its index entries.');
+  });
+}
+async function uploadFiles(fileList) {
+  for (const f of fileList) {
+    if (f.size > 50 * 1024 * 1024) { toast(`${f.name}: over the 50 MB limit.`, true); continue; }
+    const b64 = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(f); });
+    try {
+      toast(`Uploading ${f.name}…`);
+      const { file } = await api('POST', '/api/files', { name: f.name, dataBase64: b64 });
+      if (file.indexStatus === 'ready') toast(`${f.name} is ready — ${file.chunks} chunks${file.pages ? ' across ' + file.pages + ' pages' : ''}.`);
+      else if (file.indexStatus === 'failed') toast(`${f.name}: ${file.error}`, true);
+    } catch (e) { toast(e.message, true); }
+  }
+  await bootstrap(); render();
+}
+
+/* ============ github view ============ */
+function renderGithub(main) {
+  main.innerHTML = `<div class="page">
+    <h1>GitHub connector</h1>
+    <div class="muted" style="margin-bottom:16px">Read-only in this build. Public repos are indexed here (secrets detected &amp; skipped); private repos need a token in the production build.</div>
+    <div class="card">
+      <div class="row">
+        <input class="input" id="gh-owner" placeholder="owner (e.g. octocat)" style="max-width:200px">
+        <input class="input" id="gh-repo" placeholder="repo (e.g. Hello-World)" style="max-width:220px">
+        <button class="btn primary" id="gh-connect">Connect &amp; index</button>
+      </div>
+      <div class="faint" style="margin-top:8px;font-size:12px">Indexes up to 60 text/code files per repo (demo budget). Files matching secret patterns are skipped and counted, never embedded.</div>
+    </div>
+    <div id="repo-cards">${S.repos.map(repoCard).join('') || '<div class="empty"><div class="big">No repositories connected</div><div>Connect a public repo above, then attach it to a chat to ask questions about the code.</div></div>'}</div>
+  </div>`;
+  $('#gh-connect').onclick = async () => {
+    const owner = $('#gh-owner').value.trim(), repo = $('#gh-repo').value.trim();
+    if (!owner || !repo) { toast('Enter both owner and repo.', true); return; }
+    const btn = $('#gh-connect'); btn.disabled = true; btn.textContent = 'Indexing… (can take a minute)';
+    try {
+      const { repo: r } = await api('POST', '/api/github', { owner, repo });
+      await bootstrap();
+      if (r.status === 'ready') toast(`Indexed ${r.filesIndexed} files from ${owner}/${repo}${r.filesSkipped ? ` · ${r.filesSkipped} skipped` : ''}.`);
+      else toast(`${owner}/${repo}: ${r.error || r.status}`, r.status === 'failed');
+    } catch (e) { toast(e.message, true); }
+    render();
+  };
+  document.querySelectorAll('[data-delrepo]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Disconnect this repo and delete its index?')) return;
+    await api('DELETE', '/api/github/' + b.dataset.delrepo);
+    await bootstrap(); render();
+  });
+  document.querySelectorAll('[data-askrepo]').forEach((b) => b.onclick = () => {
+    S.attachedRepos.add(b.dataset.askrepo); setView('chat'); toast('Repo attached to your next message.');
+  });
+  document.querySelectorAll('[data-viewfile]').forEach((b) => b.onclick = async () => {
+    const [rid, p] = [b.dataset.repo, b.dataset.viewfile];
+    try {
+      const { content } = await api('GET', `/api/github/${rid}/file?path=${encodeURIComponent(p)}`);
+      showFileModal(p, content);
+    } catch (e) { toast(e.message, true); }
+  });
+  loadRepoFileLists();
+}
+function repoCard(r) {
+  const files = r.status === 'ready' ? Object.keys((window.__repoFiles && window.__repoFiles[r.id]) || {}) : null;
+  return `<div class="card">
+    <div class="row between">
+      <div><strong style="font-size:15px">${esc(r.owner)}/${esc(r.repo)}</strong>
+        <div class="faint" style="font-size:12.5px">${esc(r.description || '')}</div></div>
+      <div class="row">${statusBadge(r.status)}
+        ${r.status === 'ready' ? `<button class="btn sm" data-askrepo="${r.id}">Ask about this repo</button>` : ''}
+        <button class="btn ghost sm" data-delrepo="${r.id}">Disconnect</button></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span class="badge">${r.filesIndexed || 0} files indexed</span>
+      <span class="badge">${r.chunkCount || 0} chunks</span>
+      ${r.filesSkipped ? `<span class="badge amber">${r.filesSkipped} skipped</span>` : ''}
+      <span class="badge">branch: ${esc(r.defaultBranch)}</span>
+    </div>
+    ${r.skippedReasons && r.skippedReasons.length ? `<div class="faint" style="margin-top:8px;font-size:12px">⚠ ${esc(r.skippedReasons.slice(0, 3).join(' · '))}${r.skippedReasons.length > 3 ? ' …' : ''}</div>` : ''}
+    ${r.error ? `<div style="margin-top:8px;color:var(--danger);font-size:12.5px">${esc(r.error)}</div>` : ''}
+    ${r.status === 'ready' ? `<details style="margin-top:10px"><summary class="faint" style="cursor:pointer;font-size:12.5px">Browse indexed files</summary>
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px" data-repofiles="${r.id}"><span class="faint" style="font-size:12px">Loading…</span></div></details>` : ''}
+  </div>`;
+}
+function loadRepoFileLists() {
+  for (const el of document.querySelectorAll('[data-repofiles]')) {
+    const rec = S.repos.find((x) => x.id === el.dataset.repofiles);
+    const keys = (rec && rec.fileList) || [];
+    el.innerHTML = keys.length
+      ? keys.map((p) => `<span class="chip" data-viewfile="${esc(p)}" data-repo="${rec.id}" style="cursor:pointer">${esc(p)}</span>`).join('')
+      : '<span class="faint" style="font-size:12px">No browsable files.</span>';
+    el.querySelectorAll('[data-viewfile]').forEach((b) => b.onclick = async () => {
+      try {
+        const { content } = await api('GET', `/api/github/${rec.id}/file?path=${encodeURIComponent(b.dataset.viewfile)}`);
+        showFileModal(b.dataset.viewfile, content);
+      } catch (e) { toast(e.message, true); }
+    });
+  }
+}
+function showFileModal(path, content) {
+  const root = $('#modal-root');
+  root.innerHTML = `<div class="modal-back" id="mb"><div class="modal" style="max-width:760px">
+    <div class="row between"><strong style="font-family:var(--mono);font-size:13px">${esc(path)}</strong><button class="btn ghost sm" id="mclose">✕ Close</button></div>
+    <pre style="margin-top:12px;max-height:60vh;overflow:auto;background:var(--raised);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:12px">${esc(content.slice(0, 60000))}</pre>
+  </div></div>`;
+  $('#mb').onclick = (e) => { if (e.target.id === 'mb' || e.target.id === 'mclose') root.innerHTML = ''; };
+}
+
+/* ============ feedback view ============ */
+const FB_TYPES = [['bug', 'Bug report'], ['feature_request', 'Feature request'], ['ui_confusion', 'UI confusion'], ['provider_issue', 'Provider / model issue'], ['document_issue', 'PDF / document issue'], ['image_issue', 'Image issue'], ['github_issue', 'GitHub connector issue'], ['performance_issue', 'Performance issue'], ['security_privacy', 'Security / privacy concern'], ['general', 'General feedback']];
+const FB_STATUSES = ['new', 'triaged', 'needs_more_information', 'planned', 'in_progress', 'resolved', 'closed', 'rejected'];
+function renderFeedback(main) {
+  main.innerHTML = `<div class="page">
+    <h1>Feedback</h1><div class="muted" style="margin-bottom:16px">Tell us what\u2019s broken or missing. Submissions are stored server-side and reviewed by an admin.</div>
+    <div class="grid2">
+      <div class="card">
+        <h2>Submit feedback</h2>
+        <label class="lbl">Type</label>
+        <select class="input" id="fb-type">${FB_TYPES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}</select>
+        <label class="lbl">Priority</label>
+        <select class="input" id="fb-priority"><option>low</option><option selected>medium</option><option>high</option><option>critical</option></select>
+        <label class="lbl">Title</label><input class="input" id="fb-title" maxlength="200" placeholder="One-line summary">
+        <label class="lbl">Description</label><textarea class="input" id="fb-desc" rows="5" placeholder="What happened? What did you expect?"></textarea>
+        <label style="display:flex;gap:8px;margin-top:12px;font-size:13px;color:var(--text-2)">
+          <input type="checkbox" id="fb-consent"> Include diagnostic context (this page\u2019s URL and browser info). Never includes API keys or file contents.
+        </label>
+        <div class="row" style="margin-top:14px"><button class="btn primary" id="fb-submit">Submit feedback</button><span class="faint" style="font-size:12px" id="fb-page"></span></div>
+      </div>
+      <div class="card">
+        <div class="row between"><h2 style="margin:0">Triage (admin)</h2>
+          <select class="input" id="fb-filter" style="width:150px"><option value="">All statuses</option>${FB_STATUSES.map((s) => `<option>${s}</option>`).join('')}</select></div>
+        <div id="fb-list" style="margin-top:10px"></div>
+      </div>
+    </div>
+  </div>`;
+  $('#fb-page').textContent = 'Context page: /' + S.view;
+  $('#fb-submit').onclick = async () => {
+    const title = $('#fb-title').value.trim(), description = $('#fb-desc').value.trim();
+    if (!title || !description) { toast('Add a title and description first.', true); return; }
+    try {
+      const r = await api('POST', '/api/feedback', {
+        type: $('#fb-type').value, priority: $('#fb-priority').value, title, description,
+        pageUrl: '/' + S.view, consent: $('#fb-consent').checked,
+        browser: navigator.userAgent,
+      });
+      toast(r.message); $('#fb-title').value = ''; $('#fb-desc').value = ''; $('#fb-consent').checked = false;
+      await loadFeedback(); renderFbList();
+    } catch (e) { toast(e.message, true); }
+  };
+  $('#fb-filter').onchange = renderFbList;
+  loadFeedback().then(renderFbList);
+}
+async function loadFeedback() { S.feedback = (await api('GET', '/api/feedback')).feedback; }
+function renderFbList() {
+  const el = $('#fb-list'); if (!el) return;
+  const filter = $('#fb-filter')?.value || '';
+  const items = S.feedback.filter((f) => !filter || f.status === filter);
+  if (!items.length) { el.innerHTML = '<div class="empty" style="padding:20px">No feedback yet</div>'; return; }
+  el.innerHTML = items.map((f) => `
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div class="row between"><strong style="font-size:13.5px">${esc(f.title)}</strong>
+        <span class="badge ${f.priority === 'critical' ? 'red' : f.priority === 'high' ? 'amber' : ''}">${esc(f.priority)}</span></div>
+      <div class="faint" style="font-size:12px;margin:3px 0 6px">${esc(FB_TYPES.find(([v]) => v === f.type)?.[1] || f.type)} · ${timeAgo(f.createdAt)}${f.pageUrl ? ' · from ' + esc(f.pageUrl) : ''}${f.consent ? ' · diagnostics ✓' : ''}</div>
+      <div style="font-size:13px;color:var(--text-2)">${esc(f.description).replace(/\n/g, '<br>')}</div>
+      <div class="row" style="margin-top:8px">
+        <select class="input" data-fbstatus="${f.id}" style="width:200px;padding:5px 8px">${FB_STATUSES.map((s) => `<option ${s === f.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
+        <span class="faint" style="font-size:11px">${f.history.length} status change${f.history.length === 1 ? '' : 's'}</span>
+      </div>
+    </div>`).join('');
+  el.querySelectorAll('[data-fbstatus]').forEach((sel) => sel.onchange = async () => {
+    await api('PUT', '/api/feedback/' + sel.dataset.fbstatus, { status: sel.value });
+    await loadFeedback(); renderFbList(); toast('Status updated — history recorded.');
+  });
+}
+
+/* ============ usage view ============ */
+function renderUsage(main) {
+  main.innerHTML = `<div class="page"><h1>Usage &amp; cost</h1><div class="muted" style="margin-bottom:16px">Token counts and estimated provider costs. Estimates are labeled as such; providers without pricing show usage only.</div><div id="usage-body"><div class="empty">Loading…</div></div></div>`;
+  api('GET', '/api/usage').then(({ totals, perConversation }) => {
+    $('#usage-body').innerHTML = `
+      <div class="grid2" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px">
+        ${[['Requests', totals.calls], ['Input tokens', totals.input.toLocaleString()], ['Output tokens', totals.output.toLocaleString()], ['Est. cost', totals.cost ? '$' + totals.cost.toFixed(4) : 'n/a']].map(([l, v]) =>
+          `<div class="card" style="margin:0;text-align:center"><div class="faint" style="font-size:12px;text-transform:uppercase;letter-spacing:.05em">${l}</div><div style="font-size:22px;font-weight:700;margin-top:4px">${v}</div></div>`).join('')}
+      </div>
+      <div class="card" style="padding:6px 18px">
+        <table class="tbl"><thead><tr><th>Conversation</th><th>Requests</th><th>Input</th><th>Output</th><th>Est. cost</th><th>Models</th></tr></thead><tbody>
+        ${perConversation.map((c) => `<tr><td style="font-weight:600">${esc(c.title)}</td><td>${c.calls}</td><td>${c.input.toLocaleString()}</td><td>${c.output.toLocaleString()}</td><td>${c.cost ? '$' + c.cost.toFixed(4) : '—'}</td><td class="faint">${c.models.map(esc).join(', ')}</td></tr>`).join('') || '<tr><td colspan="6" class="faint">No usage yet — send a chat message.</td></tr>'}
+        </tbody></table>
+      </div>
+      <div class="faint" style="font-size:12px">Note: where a provider gives no pricing (many Groq tiers), cost shows as — rather than a fake zero.</div>`;
+  }).catch((e) => { $('#usage-body').innerHTML = `<div class="empty">${esc(e.message)}</div>`; });
+}
+
+/* ============ settings view ============ */
+function renderSettings(main) {
+  main.innerHTML = `<div class="page">
+    <h1>Provider settings</h1>
+    <div class="muted" style="margin-bottom:16px">Your API keys are encrypted on this server (AES-256-GCM) and never shown again after saving — only a masked preview. Provider calls happen server-side; keys never reach your browser.</div>
+    <div id="cred-cards">${S.credentials.map(credCard).join('')}</div>
+    <div class="grid2">
+      <div class="card">
+        <h2>Add provider key</h2>
+        <label class="lbl">Provider</label>
+        <select class="input" id="add-provider"><option value="openrouter">OpenRouter</option><option value="groq">Groq</option><option value="custom">Custom (OpenAI-compatible)</option></select>
+        <div id="custom-fields" hidden>
+          <label class="lbl">Display name</label><input class="input" id="add-name" placeholder="e.g. Local Ollama">
+          <label class="lbl">Base URL</label><input class="input" id="add-url" placeholder="https://… (or http://localhost:11434/v1)">
+        </div>
+        <label class="lbl">API key</label><input class="input" id="add-key" type="password" placeholder="sk-or-… / gsk_…">
+        <div class="row" style="margin-top:14px"><button class="btn primary" id="add-btn">Save key</button>
+          <a class="faint" style="font-size:12px" href="https://openrouter.ai/keys" target="_blank" rel="noopener">Where do I get an OpenRouter key? ↗</a>
+          <a class="faint" style="font-size:12px" href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq key ↗</a></div>
+      </div>
+      <div class="card">
+        <h2>How keys are protected</h2>
+        <ul style="margin:6px 0;padding-left:20px;color:var(--text-2);font-size:13px;line-height:1.9">
+          <li>Encrypted at rest with AES-256-GCM (master key held server-side, mode 0600).</li>
+          <li>Never returned by any API after saving — rotation replaces ciphertexts.</li>
+          <li>Decrypted only in memory, for the duration of a provider call.</li>
+          <li>Production build escalates to OCI Vault/KMS envelope encryption (plan §13).</li>
+        </ul>
+      </div>
+    </div>
+  </div>`;
+  $('#add-provider').onchange = (e) => { $('#custom-fields').hidden = e.target.value !== 'custom'; };
+  $('#add-btn').onclick = async () => {
+    const provider = $('#add-provider').value;
+    const body = { provider, apiKey: $('#add-key').value.trim() };
+    if (provider === 'custom') { body.baseUrl = $('#add-url').value.trim(); body.displayName = $('#add-name').value.trim(); }
+    try {
+      await api('POST', '/api/credentials', body);
+      toast('Key saved — encrypted. Use Test to verify the connection.');
+      await bootstrap(); render();
+    } catch (e) { toast(e.message, true); }
+  };
+  document.querySelectorAll('[data-test]').forEach((b) => b.onclick = async () => {
+    b.disabled = true; b.textContent = 'Testing…';
+    try {
+      const r = await api('POST', `/api/credentials/${b.dataset.test}/test`);
+      if (r.status === 'connected') toast(`Connected — ${r.modelCount} models available.`);
+      else toast(`Connection failed: ${r.error}`, true);
+    } catch (e) { toast(e.message, true); }
+    await bootstrap(); render();
+  });
+  document.querySelectorAll('[data-rotate]').forEach((b) => b.onclick = async () => {
+    const k = prompt('Paste the replacement API key:');
+    if (!k) return;
+    try { await api('POST', `/api/credentials/${b.dataset.rotate}/rotate`, { apiKey: k.trim() }); toast('Key rotated.'); }
+    catch (e) { toast(e.message, true); }
+    await bootstrap(); render();
+  });
+  document.querySelectorAll('[data-delcred]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Delete this provider key? Conversations keep their history but can\u2019t use this key again.')) return;
+    await api('DELETE', '/api/credentials/' + b.dataset.delcred);
+    if (S.selCred === b.dataset.delcred) { S.selCred = null; localStorage.setItem('selCred', ''); }
+    await bootstrap(); render();
+  });
+}
+function credCard(c) {
+  return `<div class="card">
+    <div class="row between">
+      <div class="row"><strong style="text-transform:capitalize">${esc(c.provider === 'custom' ? (c.displayName || 'Custom') : c.provider)}</strong>
+      ${statusBadge(c.status)}</div>
+      <div class="row">
+        <button class="btn sm" data-test="${c.id}">Test connection</button>
+        <button class="btn sm" data-rotate="${c.id}">Rotate</button>
+        <button class="btn ghost sm danger" data-delcred="${c.id}">Delete</button>
+      </div>
+    </div>
+    <div class="faint" style="margin-top:8px;font-size:12.5px">
+      Key: <span style="font-family:var(--mono)">${esc(c.masked)}</span>
+      ${c.baseUrl ? ' · ' + esc(c.baseUrl) : ''}
+      ${c.lastTestedAt ? ' · tested ' + timeAgo(c.lastTestedAt) : ''}
+      ${c.lastError ? `<div style="color:var(--danger)">${esc(c.lastError)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+/* ============ wizard ============ */
+function showWizard() {
+  let step = 0;
+  const steps = ['Welcome', 'Add a key', 'Test', 'Ready'];
+  function paint() {
+    const root = $('#modal-root');
+    const dots = steps.map((_, i) => `<span class="dot ${i <= step ? 'on' : ''}"></span>`).join('');
+    let body = '';
+    if (step === 0) body = `
+      <h1>Welcome to AI Workspace</h1>
+      <p class="muted">Chat with OpenRouter, Groq, or any OpenAI-compatible provider using your own API keys. Upload PDFs and images, connect GitHub repos, and get grounded answers with citations.</p>
+      <p class="muted" style="font-size:13px">Keys are encrypted on the server and never shown again after saving. You can skip this and set everything up later in <strong>Provider settings</strong>.</p>`;
+    if (step === 1) body = `
+      <h2>Add your first provider key</h2>
+      <label class="lbl">Provider</label>
+      <select class="input" id="wz-provider"><option value="openrouter">OpenRouter (recommended — 300+ models)</option><option value="groq">Groq (very fast inference)</option><option value="custom">Custom OpenAI-compatible endpoint</option></select>
+      <div id="wz-custom" hidden><label class="lbl">Base URL</label><input class="input" id="wz-url" placeholder="http://localhost:11434/v1"></div>
+      <label class="lbl">API key</label>
+      <input class="input" id="wz-key" type="password" placeholder="Paste your key…">
+      <p class="faint" style="font-size:12px;margin-top:8px">Get one at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> or <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a>. A small provider-side credit may be needed; this app itself doesn\u2019t charge you.</p>`;
+    if (step === 2) body = `
+      <h2>Testing the connection</h2><p class="muted" id="wz-test-msg">Checking your key against the provider…</p>`;
+    if (step === 3) body = `
+      <h2>You\u2019re set 🎉</h2>
+      <p class="muted" id="wz-done-msg">Pick a model in the chat view and send your first message. Optional next steps: upload a PDF on the <strong>Files</strong> page, or attach a public GitHub repo.</p>
+      <p class="faint" style="font-size:12.5px">Heads-up: your first test message uses a tiny amount of your provider credit.</p>`;
+    root.innerHTML = `<div class="modal-back"><div class="modal">
+      <div class="steps">${dots}</div>${body}
+      <div class="row between" style="margin-top:20px">
+        <button class="btn ghost" id="wz-skip">Skip setup</button>
+        <div class="row">
+          ${step > 0 && step < 3 ? '<button class="btn" id="wz-back">Back</button>' : ''}
+          <button class="btn primary" id="wz-next">${step === 0 ? 'Get started' : step === 1 ? 'Save & test' : step === 3 ? 'Start chatting' : 'Continue'}</button>
+        </div>
+      </div>
+    </div></div>`;
+    $('#wz-skip').onclick = () => { root.innerHTML = ''; };
+    const back = $('#wz-back'); if (back) back.onclick = () => { step--; paint(); };
+    const next = $('#wz-next');
+    if (step === 1) $('#wz-provider').onchange = (e) => { $('#wz-custom').hidden = e.target.value !== 'custom'; };
+    next.onclick = async () => {
+      if (step === 0) { step = 1; return paint(); }
+      if (step === 1) {
+        const provider = $('#wz-provider').value;
+        const apiKey = $('#wz-key').value.trim();
+        if (!apiKey) { toast('Paste an API key to continue — or Skip.', true); return; }
+        try {
+          const body = { provider, apiKey };
+          if (provider === 'custom') body.baseUrl = $('#wz-url').value.trim();
+          const { credential } = await api('POST', '/api/credentials', body);
+          S._wzCred = credential.id;
+          step = 2; paint();
+          const r = await api('POST', `/api/credentials/${credential.id}/test`);
+          const msg = $('#wz-test-msg');
+          if (r.status === 'connected') { msg.innerHTML = `<span style="color:var(--success)">✓ Connected — ${r.modelCount} models found.</span>`; setTimeout(() => { step = 3; paint(); }, 700); }
+          else { msg.innerHTML = `<span style="color:var(--danger)">✗ ${esc(r.error)}</span><br><span class="faint" style="font-size:12.5px">You can fix the key later in Provider settings.</span>`; next.textContent = 'Continue anyway'; next.onclick = () => { step = 3; paint(); }; }
+        } catch (e) { toast(e.message, true); }
+        return;
+      }
+      if (step === 3) {
+        $('#modal-root').innerHTML = '';
+        await bootstrap();
+        if (S._wzCred) { S.selCred = S._wzCred; localStorage.setItem('selCred', S.selCred); try { const r = await api('GET', '/api/models?cred=' + S.selCred); S.modelsByCred[S.selCred] = r.models; const good = pickDefaultModel(r.models); if (good) { S.selModel = good.id; localStorage.setItem('selModel', good.id); } } catch {} }
+        setView('chat');
+        return;
+      }
+      step++; paint();
+    };
+  }
+  paint();
+}
+
+/* ============ bootstrap ============ */
+async function bootstrap(silent) {
+  const b = await api('GET', '/api/bootstrap');
+  S.credentials = b.credentials; S.conversations = b.conversations; S.files = b.files; S.repos = b.repos;
+  if (!S.selCred && S.credentials.length) { S.selCred = S.credentials[0].id; localStorage.setItem('selCred', S.selCred); }
+  if (S.selCred && !S.modelsByCred[S.selCred]) {
+    try {
+      const r = await api('GET', '/api/models?cred=' + S.selCred); S.modelsByCred[S.selCred] = r.models;
+      if (!S.selModel) { const d = pickDefaultModel(r.models); if (d) { S.selModel = d.id; localStorage.setItem('selModel', d.id); } }
+    } catch {}
+  }
+  if (!silent) { render(); if (!S.credentials.length && !sessionStorage.getItem('wizDone')) { sessionStorage.setItem('wizDone', '1'); showWizard(); } }
+}
+window.setView = setView;
+bootstrap();
+</script>
+</body>
+</html>
