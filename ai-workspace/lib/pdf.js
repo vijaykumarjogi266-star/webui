@@ -19,10 +19,27 @@ function extractPdf(buf) {
   if (!src.startsWith('%PDF')) return { ok: false, error: 'Not a PDF file', pages: [] };
 
   // 1) collect indirect objects
+  //
+  // Performance note (found by test/pdf.fuzz.js): the obvious pattern
+  //   /(\d+)\s+\d+\s+obj([\s\S]*?)endobj/g
+  // is quadratic on hostile input. Every "N 0 obj" header starts a lazy scan
+  // that runs to EOF when no "endobj" follows, so a file that is just
+  // "1 0 obj" repeated 40k times costs ~1.3s of pure CPU per request — a cheap
+  // algorithmic-complexity DoS (single-threaded server, 20MB uploads allowed).
+  //
+  // Instead: find each header, then jump straight to the next "endobj" with
+  // indexOf(). Each byte is visited a bounded number of times => linear.
   const objects = new Map(); // num -> body string
-  const objRe = /(\d+)\s+\d+\s+obj([\s\S]*?)endobj/g;
+  const headerRe = /(\d+)\s+\d+\s+obj/g;
   let m;
-  while ((m = objRe.exec(src)) !== null) objects.set(+m[1], m[2]);
+  while ((m = headerRe.exec(src)) !== null) {
+    const bodyStart = m.index + m[0].length;
+    const end = src.indexOf('endobj', bodyStart);
+    if (end === -1) break;              // no terminator left: nothing more to collect
+    const num = +m[1];
+    if (!objects.has(num)) objects.set(num, src.slice(bodyStart, end));
+    headerRe.lastIndex = end + 6;       // resume after this object, never rescan it
+  }
 
   // 2) stream bytes for an object body
   function streamBytes(body) {

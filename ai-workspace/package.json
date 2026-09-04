@@ -20,12 +20,14 @@
     "dev": "node --watch server.js",
     "demo": "node make-demo.js",
     "smoke": "node scripts/smoke.js",
-    "check": "node --check server.js && node --check make-demo.js && node --check scripts/smoke.js && npm run smoke",
+    "check": "node --check server.js && node --check make-demo.js && node --check scripts/smoke.js && npm test && npm run fuzz && npm run smoke",
     "docker:build": "docker build --build-arg GIT_SHA=$(git rev-parse HEAD) -t ai-workspace:local .",
     "docker:run": "docker run --rm -p 3000:3000 -v ai-workspace-data:/app/data ai-workspace:local",
     "compose:up": "docker compose up --build -d",
     "compose:down": "docker compose down",
-    "compose:logs": "docker compose logs -f web"
+    "compose:logs": "docker compose logs -f web",
+    "test": "node --test \"test/*.test.js\"",
+    "fuzz": "node test/pdf.fuzz.js"
   },
   "dependencies": {},
   "devDependencies": {}

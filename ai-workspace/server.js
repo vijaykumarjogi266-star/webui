@@ -39,10 +39,22 @@ function sendJson(res, status, obj) {
 }
 function readBody(req, limit = MAX_JSON_BODY) {
   return new Promise((resolve, reject) => {
-    let size = 0; const parts = [];
+    let size = 0; const parts = []; let done = false;
     req.on('data', (c) => {
+      if (done) return;
       size += c.length;
-      if (size > limit) { reject(Object.assign(new Error('Payload too large'), { status: 413 })); req.destroy(); return; }
+      if (size > limit) {
+        done = true;
+        // Stop buffering, but keep the socket flowing so the 413 can actually be
+        // written. req.destroy() reset the connection (client saw a network
+        // error); req.pause() stalled it and wedged the next keep-alive request.
+        // Drain and discard instead, and close the connection after responding.
+        parts.length = 0;
+        req.resume();
+        req.tooLarge = true;
+        reject(Object.assign(new Error('Payload too large'), { status: 413, code: 'payload_too_large' }));
+        return;
+      }
       parts.push(c);
     });
     req.on('end', () => resolve(Buffer.concat(parts)));
@@ -56,6 +68,7 @@ async function readJson(req, limit) {
 }
 function safeError(res, err, fallback = 'Something went wrong on our side.') {
   const status = err.status || 500;
+  if (status === 413 && !res.headersSent) res.setHeader('Connection', 'close');
   // 5xx details (stack traces, provider payloads, file paths) stay server-side.
   const message = status < 500 ? scrubSecrets(String(err.message || 'Request failed.')).slice(0, 400) : fallback;
   if (status >= 500) console.error('[error]', err);
@@ -301,11 +314,10 @@ async function ghJson(url) {
   return res.json();
 }
 
-async function handleGithubConnect(req, res) {
-  const body = await readJson(req);
-  // Path-injection guard: without this, owner="../../user" rewrote the API path.
-  const owner = sec.assertGithubSegment(body.owner, 'owner');
-  const repo = sec.assertGithubSegment(String(body.repo || '').replace(/\.git$/, ''), 'repo');
+// `params` is pre-validated by the route (path-injection guard: without it,
+// owner="../../user" rewrote the GitHub API path).
+async function handleGithubConnect(req, res, params) {
+  const { owner, repo } = params;
 
   const meta = await ghJson(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`);
   const tree = await ghJson(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${meta.default_branch}?recursive=1`);
@@ -484,8 +496,13 @@ route('DELETE', /^\/api\/files\/([\w-]+)$/, (req, res, m) => {
 // github
 route('GET', /^\/api\/github$/, (req, res) => sendJson(res, 200, { repos: db.repos.map(repoPublic) }));
 route('POST', /^\/api\/github$/, async (req, res) => {
+  // Validate BEFORE metering: otherwise a handful of malformed requests burns
+  // the indexing budget and the caller gets a misleading 429 for bad input.
+  const body = await readJson(req);
+  const owner = sec.assertGithubSegment(body.owner, 'owner');
+  const repo = sec.assertGithubSegment(String(body.repo || '').replace(/\.git$/, ''), 'repo');
   if (!sec.rateLimit(req, 'github', 5, 60_000)) throw sec.bad('Too many repository indexing requests. Wait a minute.', 'rate_limited', 429);
-  return handleGithubConnect(req, res);
+  return handleGithubConnect(req, res, { owner, repo });
 });
 route('DELETE', /^\/api\/github\/([\w-]+)$/, (req, res, m) => {
   db.repos = db.repos.filter((r) => r.id !== m[1]);

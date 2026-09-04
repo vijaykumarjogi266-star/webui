@@ -64,11 +64,19 @@ This build is gated by an access token and hardened against the findings in
 [`SECURITY.md`](SECURITY.md): 14 issues from an adversarial review — missing auth, SSRF via
 custom provider base URLs and image attachments, CSRF, GitHub path injection, a markdown-
 renderer XSS, missing rate limits and security headers, path traversal, secret hygiene — plus
-7 more found by a second-pass audit of the fixes themselves (a CSRF bypass via
-`X-Forwarded-Host` and an SSRF bypass via IPv4-mapped IPv6 among them).
+17 more found by four further passes that audited the fixes themselves — a CSRF bypass via
+`X-Forwarded-Host`, an SSRF bypass via IPv4-mapped IPv6, a login limiter that locked out the
+legitimate owner, a PDF decompression bomb, and a quadratic-blowup DoS in the PDF parser
+caught by the fuzzer. 31 findings total; all fixed.
 
 On first boot the server prints a generated access token and stores it at `data/app.token`
 (mode 0600). Paste it into the unlock prompt in the UI, or send it as
 `Authorization: Bearer <token>`. Override with `APP_TOKEN`; set `AUTH_DISABLED=true` only on a
-trusted loopback dev box. `npm run smoke` runs the 28-check gate, 21 of which are security
-assertions. Always deploy behind TLS with `TRUST_PROXY=true` and `FORCE_HSTS=true`.
+trusted loopback dev box. Always deploy behind TLS with `TRUST_PROXY=true` and `FORCE_HSTS=true`.
+
+```bash
+npm test        # 44 unit + route tests (security primitives, every route's auth/CSRF gate)
+npm run fuzz    # PDF parser fuzzer (deterministic seed; found the V29 quadratic DoS)
+npm run smoke   # 28-check deploy gate, 21 of them security assertions
+npm run check   # all of the above
+```

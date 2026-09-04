@@ -11,9 +11,12 @@ A **second-pass self-audit of the fixes themselves** (§5) found 7 more issues i
 including a real CSRF bypass and an SSRF filter bypass. A **third pass** (§6) critiqued the
 hardening for availability and correctness rather than just exploitability, and found the
 brute-force limiter had turned into a self-inflicted lockout. A **fourth pass** (§7) attacked
-the file parsers and found an unfixed decompression bomb. All fixed. Smoke gate: **28/28**.
+the file parsers and found an unfixed decompression bomb. A **fifth pass** (§8) closed the
+testing gaps §7 admitted to — unit tests, a fuzzer, and full route coverage — and found 3 more
+issues, including a quadratic-blowup DoS in the PDF parser. All fixed.
 
-**This document is not a claim of "secure".** §7 lists what remains untested and unfixed.
+**Test gate: 44 unit/route tests + 28 smoke checks + a PDF fuzzer, all green.**
+This document is still not a claim of "secure" — §8 lists what remains.
 
 ---
 
@@ -250,3 +253,59 @@ fixes*, pass 3 found 6 more, pass 4 found 1. Converging, not converged. Specific
    as V28 demonstrates.
 9. **The auth model is one shared token.** No users, no roles, no audit trail, no revocation
    beyond rotating the token. Adequate for single-tenant BYOK; not a multi-user product.
+
+---
+
+## 8. Fifth pass — building the tests §7 said were missing
+
+§7 listed three admitted gaps: no unit tests for the security primitives, no fuzzing of the
+PDF parser, and 11-of-30 route coverage. Closing them found 3 more defects.
+
+| # | Sev | Finding | Status |
+|---|-----|---------|--------|
+| V29 | **High** | **Quadratic blowup in the PDF object scanner (algorithmic DoS).** Found by the new fuzzer, which flagged a `repetition` case at **1734 ms**. The object regex `/(\d+)\s+\d+\s+obj([\s\S]*?)endobj/g` starts a lazy scan at every `N 0 obj` header; when no `endobj` follows, each of the *n* headers scans to EOF — O(n²). A 280 KB file of `"1 0 obj"` repeated 40 000 times burns ~1.3 s of CPU on a single-threaded server that accepts 20 MB uploads. Rewritten to find each header then `indexOf('endobj')` and resume past it: **1262 ms → 0 ms**, and 160 k repetitions now costs 1 ms. Multi-page flate-compressed PDFs still extract correctly. | Fixed |
+| V30 | Medium | **GitHub rate limit metered before validation.** `POST /api/github` consumed its 5/min budget on requests that were about to be rejected as malformed, so six bad requests locked out legitimate indexing and returned a misleading `429` for what was actually a `400`. Validation now runs first. | Fixed |
+| V31 | Medium | **413 responses reset the connection.** `readBody()` called `req.destroy()` on oversize input, so the client saw a TCP reset (`status 0`) rather than a usable status code. The first fix — `req.pause()` — was worse: it stalled the socket and **wedged the next keep-alive request for 5 s**, caught only because the route suite asserts the server is still healthy afterwards. Correct fix: drain and discard, respond 413, and set `Connection: close`. | Fixed |
+
+### What was built
+
+**`test/security.test.js` — 22 unit tests** covering `isPrivateIp` (both IPv4-mapped IPv6
+spellings), `assertSafeUrl` (schemes, embedded credentials, obfuscated IP encodings),
+`assertResolvesPublic`, `assertId`/`assertGithubSegment` (prototype keys, traversal),
+`validateImages`, `resolveStatic` (traversal, null bytes, symlink escape, prefix-sibling
+directories), `timingSafeEqual`, the session HMAC (tamper, expiry, cross-token replay),
+`checkOrigin` (including the V15 `X-Forwarded-Host` forgery), `clientIp`, the rate limiters,
+and the CSP header set.
+
+**These tests were themselves validated by mutation testing.** Reverting the V15, V16 and
+symlink-escape fixes made the suite fail (2, 1 and 1 tests respectively) — confirming it
+detects regressions rather than merely passing.
+
+**`test/pdf.fuzz.js`** — 10 generators (structured fragments, noise, valid/corrupt flate,
+decompression bombs, pathological repetition, cyclic page trees, length lies, escape
+sequences, truncation) with a deterministic seed for reproducibility. A case fails if the
+parser throws, exceeds a time budget, or grows the heap past a cap. Post-fix: **6000 cases,
+worst case 13.5 ms** (was 1734 ms).
+
+**`test/routes.test.js` — 22 integration tests** taking route coverage from 11/30 to **30/30**.
+Three table-driven tests assert that *every* protected route rejects no-auth, rejects a bad
+token, and enforces the CSRF origin check — so a newly added route that forgets its gate fails
+automatically. Plus full CRUD lifecycles (conversations, files, feedback, credentials),
+key-leakage assertions (the raw key must not appear in create/list/bootstrap responses),
+consent handling for feedback metadata, and malformed/oversized body handling.
+
+Wired into `npm test`, `npm run fuzz`, and `npm run check`.
+
+### Residual risk, updated
+
+Fixed since §7: unit tests (7.6), fuzzing (7.8), route coverage (7.5).
+**Still outstanding:**
+
+1. **`script-src 'unsafe-inline'`** — unchanged, and still the biggest weakness. Needs the
+   inline `<script>` extracted from `public/*.html` into `/app.js`.
+2. **DNS-rebinding window narrowed, not closed** (V23) — needs IP-pinning via a custom agent.
+3. **Rate limits are per-process and in-memory** — no good across replicas.
+4. **Never run against a real provider** — no API key in this environment, so `streamChat`,
+   SSE framing, usage accounting and provider error mapping remain unverified end-to-end.
+   The route tests cover everything *up to* the outbound call.
+5. **One shared token, no users/roles/audit trail.**
