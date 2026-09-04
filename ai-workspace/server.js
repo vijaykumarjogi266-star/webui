@@ -582,10 +582,19 @@ route('GET', /^\/api\/auth\/status$/, (req, res) => sendJson(res, 200, {
 }));
 route('POST', /^\/api\/auth\/login$/, async (req, res) => {
   if (!APP_TOKEN) return sendJson(res, 200, { ok: true, authRequired: false });
-  // Brute-force gate: 5 attempts / 5 min / IP.
-  if (!sec.rateLimit(req, 'login', 5, 5 * 60_000)) throw sec.bad('Too many sign-in attempts. Try again in a few minutes.', 'rate_limited', 429);
+  // Brute-force gate. A hard 429 here was a self-inflicted DoS: everyone behind a
+  // shared egress IP (or any anonymous attacker) could lock the owner out of their
+  // own workspace for 5 minutes. Instead we throttle with a progressive delay, so
+  // guessing stays infeasible while a legitimate sign-in always eventually lands.
+  const attempts = sec.attemptCount(req, 'login', 15 * 60_000);
+  if (attempts > 5) {
+    const delayMs = Math.min(4000, 250 * Math.pow(2, Math.min(attempts - 5, 4)));
+    await new Promise((r) => setTimeout(r, delayMs));
+  }
+  if (attempts > 200) throw sec.bad('Too many sign-in attempts from this address.', 'rate_limited', 429);
   const { token } = await readJson(req, 8 * 1024);
   if (!sec.timingSafeEqual(String(token || ''), APP_TOKEN)) throw sec.bad('That access token is not valid.', 'unauthorized', 401);
+  sec.resetAttempts(req, 'login'); // a correct token clears the backoff
   const secureFlag = (req.headers['x-forwarded-proto'] === 'https' || process.env.FORCE_HSTS === 'true') ? ' Secure;' : '';
   res.setHeader('Set-Cookie', `${sec.COOKIE}=${sec.mintSession(APP_TOKEN)}; HttpOnly; SameSite=Strict; Path=/;${secureFlag} Max-Age=${Math.floor(sec.TOKEN_TTL_MS / 1000)}`);
   sendJson(res, 200, { ok: true });

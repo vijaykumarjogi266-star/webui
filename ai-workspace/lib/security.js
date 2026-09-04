@@ -165,6 +165,17 @@ function clientIp(req) {
   }
   return req.socket?.remoteAddress || 'unknown';
 }
+// Returns how many attempts have been made in the window (for progressive backoff).
+function attemptCount(req, name, windowMs) {
+  const key = `${name}:${clientIp(req)}`;
+  const now = Date.now();
+  const b = buckets.get(key);
+  if (!b || now - b.start > windowMs) { buckets.set(key, { start: now, n: 1, at: now }); return 1; }
+  b.n++; b.at = now;
+  return b.n;
+}
+function resetAttempts(req, name) { buckets.delete(`${name}:${clientIp(req)}`); }
+
 function rateLimit(req, name, limit, windowMs) {
   const key = `${name}:${clientIp(req)}`;
   const now = Date.now();
@@ -298,7 +309,7 @@ module.exports = {
   loadAppToken, timingSafeEqual, mintSession, verifySession, parseCookies,
   checkOrigin, SAFE_METHODS,
   assertSafeUrl, assertResolvesPublic, isPrivateIp,
-  rateLimit, clientIp,
+  rateLimit, attemptCount, resetAttempts, clientIp,
   securityHeaders, CSP,
   bad, assertId, assertGithubSegment, assertString, sanitizeText,
   validateImages, validateIdList, resolveStatic,

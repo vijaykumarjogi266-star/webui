@@ -384,7 +384,7 @@ function renderComposer() {
   const el = $('#composer'); if (!el) return;
   const filesReady = S.files.filter((f) => f.indexStatus === 'ready');
   const reposReady = S.repos.filter((r) => r.status === 'ready');
-  const chip = (id, label, set, kind) => `<span class="chip ${set.has(id) ? 'on' : ''}" data-toggle="${kind}:${id}">${esc(label)} <button data-rm="${kind}:${id}">✕</button></span>`;
+  const chip = (id, label, set, kind) => `<span class="chip ${set.has(id) ? 'on' : ''}" data-toggle="${esc(kind)}:${esc(id)}">${esc(label)} <button data-rm="${esc(kind)}:${esc(id)}">✕</button></span>`;
   const attached = [
     ...[...S.attachedFiles].map((id) => { const f = S.files.find((x) => x.id === id); return f ? chip(id, '📄 ' + f.name, S.attachedFiles, 'f') : ''; }),
     ...[...S.attachedRepos].map((id) => { const r = S.repos.find((x) => x.id === id); return r ? chip(id, '⌥ ' + r.owner + '/' + r.repo, S.attachedRepos, 'r') : ''; }),
@@ -435,7 +435,8 @@ function renderComposer() {
   $('#attach-menu').querySelector('[data-img]').onclick = () => $('#img-input').click();
   $('#img-input').onchange = async (e) => {
     for (const f of e.target.files) {
-      if (f.size > 10 * 1024 * 1024) { toast(`${f.name} is over the 10 MB image limit.`, true); continue; }
+      if (S.attachedImages.length >= 4) { toast('At most 4 images per message.', true); break; }
+      if (f.size > 6 * 1024 * 1024) { toast(`${f.name} is over the 6 MB image limit.`, true); continue; }
       const dataUrl = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); });
       S.attachedImages.push({ name: f.name, dataUrl });
     }
@@ -568,7 +569,7 @@ function renderFiles(main) {
     <div class="card">
       <div class="file-drop" id="drop">
         <div style="font-weight:600;margin-bottom:4px">Drop files here or click to browse</div>
-        <div class="faint" style="font-size:12.5px">PDF · TXT · MD · CSV · JSON · code files — up to 50 MB. Processed on this server; sent to a provider only when you ask about them.</div>
+        <div class="faint" style="font-size:12.5px">PDF · TXT · MD · CSV · JSON · code files — up to 20 MB. Processed on this server; sent to a provider only when you ask about them.</div>
       </div>
       <input type="file" id="file-input" hidden multiple accept=".pdf,.txt,.md,.markdown,.csv,.json,.js,.ts,.tsx,.jsx,.py,.java,.go,.rs,.sql,.yml,.yaml,.html,.css,.sh,.c,.cpp,.rb,.php">
     </div>
@@ -601,7 +602,7 @@ function renderFileRows() {
 }
 async function uploadFiles(fileList) {
   for (const f of fileList) {
-    if (f.size > 50 * 1024 * 1024) { toast(`${f.name}: over the 50 MB limit.`, true); continue; }
+    if (f.size > 20 * 1024 * 1024) { toast(`${f.name}: over the 20 MB limit.`, true); continue; }
     const b64 = await new Promise((r) => { const fr = new FileReader(); fr.onload = () => r(fr.result.split(',')[1]); fr.readAsDataURL(f); });
     try {
       toast(`Uploading ${f.name}…`);
@@ -959,7 +960,15 @@ async function bootstrap(silent) {
   if (!silent) { render(); if (!S.credentials.length && !sessionStorage.getItem('wizDone')) { sessionStorage.setItem('wizDone', '1'); showWizard(); } }
 }
 window.setView = setView;
-bootstrap();
+// Check the auth gate BEFORE bootstrapping: otherwise the first /api/bootstrap
+// 401 rejects an un-awaited promise and the user just sees an empty shell.
+(async () => {
+  try {
+    const st = await (await fetch('/api/auth/status', { credentials: 'same-origin' })).json();
+    if (st.authRequired && !st.authenticated) { showLogin(); return; }
+  } catch { /* offline or old server: fall through to bootstrap */ }
+  bootstrap().catch((e) => toast(e.message || 'Could not load the workspace.', true));
+})();
 </script>
 </body>
 </html>

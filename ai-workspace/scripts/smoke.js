@@ -126,6 +126,27 @@ async function runCheck(base, c) {
     results.push({ name: c.name, ok: !fail, detail: fail || 'ok' });
   }
 
+  // Availability regression (V22): a burst of BAD logins must not lock out the
+  // legitimate token. Exploit-only tests passed this build while it was lockable.
+  {
+    for (let i = 0; i < 8; i++) {
+      await fetch(new URL('/api/auth/login', base), {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: 'definitely-wrong' }), signal: AbortSignal.timeout(8000),
+      }).catch(() => {});
+    }
+    let ok = false, detail = 'no response';
+    try {
+      const res = await fetch(new URL('/api/auth/login', base), {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: APP_TOKEN }), signal: AbortSignal.timeout(20000),
+      });
+      ok = res.status === 200;
+      detail = ok ? 'ok' : `HTTP ${res.status} — owner locked out by failed attempts`;
+    } catch (e) { detail = 'request error: ' + e.message; }
+    results.push({ name: 'correct token still works after 8 failed logins (no self-DoS)', ok, detail });
+  }
+
   // Raw-socket checks: paths that the URL parser would rewrite before sending
   // (e.g. protocol-relative '//api/...') can only be exercised at the socket level.
   if (!TARGET) {

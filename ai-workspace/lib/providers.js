@@ -20,8 +20,7 @@ const GROQ_CONTEXT = [
 
 function baseUrlFor(cred) {
   if (cred.provider === 'custom') {
-    // Re-validate on every use: a stored record could predate the SSRF guard
-    // or have been tampered with in the JSON store.
+    // Shape-only check (sync callers). Use assertUsableBase() before any fetch.
     const raw = (cred.baseUrl || '').replace(/\/+$/, '');
     sec.assertSafeUrl(raw, { requireHttps: false });
     return raw;
@@ -71,6 +70,15 @@ async function verifyKey(cred, apiKey) {
   return true;
 }
 
+// Re-resolve custom hosts immediately before every outbound call. Checking DNS
+// only when the credential is saved leaves a TOCTOU window: a host that resolved
+// public at save time can be re-pointed at 127.0.0.1 later (DNS rebinding).
+async function assertUsableBase(cred) {
+  const base = baseUrlFor(cred);
+  if (cred.provider === 'custom') await sec.assertResolvesPublic(base);
+  return base;
+}
+
 // ---- model catalog ----
 function looksLikeVision(provider, modelId, meta) {
   if (meta?.architecture?.input_modalities?.includes?.('image')) return true;
@@ -80,7 +88,7 @@ function looksLikeVision(provider, modelId, meta) {
 }
 
 async function listModels(cred, apiKey) {
-  const base = baseUrlFor(cred);
+  const base = await assertUsableBase(cred);
   const res = await fetch(`${base}/models`, { headers: headersFor(apiKey, cred.provider), signal: AbortSignal.timeout(20000) });
   const text = await res.text();
   if (!res.ok) throw normalizeError(res.status, text);
@@ -107,7 +115,7 @@ async function listModels(cred, apiKey) {
 
 // ---- streaming chat ----
 async function streamChat({ cred, apiKey, model, messages, temperature = 0.7, maxTokens, signal, onEvent }) {
-  const base = baseUrlFor(cred);
+  const base = await assertUsableBase(cred);
   const body = { model, messages, stream: true, temperature };
   if (maxTokens) body.max_tokens = maxTokens;
   if (cred.provider === 'openrouter') body.stream_options = { include_usage: true };
@@ -166,4 +174,4 @@ async function streamChat({ cred, apiKey, model, messages, temperature = 0.7, ma
   return { text: full, usage, finishReason };
 }
 
-module.exports = { baseUrlFor, headersFor, listModels, streamChat, normalizeError, looksLikeVision, verifyKey };
+module.exports = { baseUrlFor, assertUsableBase, headersFor, listModels, streamChat, normalizeError, looksLikeVision, verifyKey };

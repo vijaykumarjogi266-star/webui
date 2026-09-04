@@ -8,8 +8,9 @@ Everything below was reproduced against a running instance before and after the 
 **Method:** source review + live exploitation (curl) against `127.0.0.1:3000`.
 **Result:** 14 findings — 5 critical, 4 high, 3 medium, 2 low. All fixed.
 A **second-pass self-audit of the fixes themselves** (§5) found 7 more issues in the patch,
-including a real CSRF bypass and an SSRF filter bypass. Those are fixed too.
-Smoke gate: **26/26**.
+including a real CSRF bypass and an SSRF filter bypass. A **third pass** (§6) critiqued the
+hardening for availability and correctness rather than just exploitability, and found the
+brute-force limiter had turned into a self-inflicted lockout. All fixed. Smoke gate: **27/27**.
 
 ---
 
@@ -51,8 +52,9 @@ unlock prompt on any 401.
 **SSRF (V2, V3)** — `assertSafeUrl()` + `assertResolvesPublic()` reject non-http(s) schemes,
 embedded credentials, `localhost`/`.local`/`.internal`/`metadata.google.internal`, and any
 host that *resolves* to loopback, RFC1918, link-local (`169.254/16`), CGNAT or multicast.
-Custom base URLs must be `https`, are validated on save **and re-validated on every use**
-(so a tampered store entry can't bypass it). Chat images must be inline
+Custom base URLs must be `https`, are validated on save, re-checked for shape on every use
+(so a tampered store entry can't bypass it), and **re-resolved via DNS immediately before each
+outbound call** so a rebinding flip to a private address is caught (see V23). Chat images must be inline
 `data:image/(png|jpeg|gif|webp);base64` — max 4 attachments, 6 MB each. Provider fetches use
 `redirect: 'error'` so a 302 can't walk out of the allowlist.
 
@@ -164,3 +166,35 @@ rate-limit sweep timer is `unref()`'d so it can't hold the process open.
 Regression tests for V15–V21 are in `scripts/smoke.js`, including two **raw-socket** checks
 (`//api/bootstrap`, `/../lib/store.js`) because `fetch()` rewrites those paths before they
 reach the wire and would silently pass a broken server.
+
+---
+
+## 6. Third pass — critiquing the hardening itself
+
+The first two passes asked "can I break in?". This one asks the questions a reviewer should
+ask of any security patch: *does the control break the product, does it actually cover the
+whole path, and does the documentation overstate it?* Six issues, one of them a genuine
+availability bug I introduced.
+
+| # | Sev | Finding | Status |
+|---|-----|---------|--------|
+| V22 | **High (availability)** | **The login rate limiter was a self-inflicted DoS.** 5 failed attempts per IP returned a hard `429` for 5 minutes. Because `TRUST_PROXY` defaults off, *every* client behind a shared egress IP (or NAT, or a reverse proxy) shares one bucket — so any anonymous attacker could lock the legitimate owner out of their own workspace indefinitely by failing 5 logins every 5 minutes. Verified: after 6 bad attempts the **correct** token returned `429`. Replaced with progressive backoff (250 ms doubling to a 4 s cap after 5 attempts, hard stop only at 200), and a successful login clears the counter. Brute force stays infeasible; the owner always eventually gets in. | Fixed |
+| V23 | **Medium** | **SSRF re-validation was shape-only (DNS-rebinding TOCTOU).** I claimed custom base URLs were "re-validated on every use", but `baseUrlFor()` only re-checked the *URL string*. DNS was resolved once, at save time. A host that resolved public when saved could be re-pointed at `127.0.0.1` afterwards and would pass forever. Added `assertUsableBase()`, which re-resolves immediately before every `listModels`/`streamChat` call. | Fixed |
+| V24 | **Medium** | **Stored-XSS path missed by my own "all render paths escaped" claim.** The composer attachment `chip()` escaped its `label` but interpolated `id` and `kind` raw into `data-` attributes. Now escaped. (The filename *is* stored raw — correctly, since sanitising for storage is the wrong layer — so escaping must be complete at render, and it now is.) | Fixed |
+| V25 | **Medium (UX)** | **The login gate never actually appeared on first load.** `bootstrap()` was called un-awaited; its `/api/bootstrap` 401 rejected into nothing, so a new user saw an empty shell with no prompt and no error — the auth feature was effectively unreachable. Boot now checks `/api/auth/status` first and renders the unlock prompt, with a `.catch()` toast on the bootstrap call. | Fixed |
+| V26 | Low | **Client and server limits disagreed after hardening**, so the UI advertised and accepted uploads the server then rejected: images 10 MB client vs 6 MB server, files 50 MB vs 20 MB, and no client-side cap at all against the server's 4-image maximum. Aligned all three in both UIs, including the "up to 50 MB" help text. | Fixed |
+| V27 | Low | Documentation overstated coverage: §2 said base URLs were re-validated "on every use" (V23) and implied render escaping was complete (V24). Corrected here. | Fixed |
+
+### What I got wrong, and the lesson
+
+Two of these (V22, V25) are the classic failure mode of security work: **the control was
+measured by whether attacks fail, never by whether legitimate use still succeeds.** My own
+smoke suite asserted that a wrong token gets `401` and that flooding gets `429` — both passed
+— while the actual product was, in one case, lockable by any stranger and, in the other,
+showing new users a blank page instead of the sign-in prompt it depended on. Exploit-only
+tests will happily certify a broken product. The suite now covers the success paths too, and
+the live sweep re-runs upload/indexing/conversation/usage after every change.
+
+V23 and V27 are the second failure mode: **the write-up drifted ahead of the code.** "Re-validated
+on every use" was true of the string and false of the DNS lookup, which is precisely the half
+that matters for rebinding.
