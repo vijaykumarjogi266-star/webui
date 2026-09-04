@@ -9,6 +9,12 @@ Delivered against the V3 master prompt ("Expert-Level AI Web UI Build Prompt"). 
 | `ai-workspace/` | **A running implementation** of the MVP core (zero npm dependencies): BYOK encrypted key vault, SSE streaming chat, PDF/text RAG with page citations, vision gating, GitHub repo Q&A, feedback + triage, usage/cost tracking — see `ai-workspace/BUILD_REVIEW.md` for the acceptance battery (12/12 green) and open production gaps |
 | `ai-workspace/SECURITY.md` | **Security review and hardening record**: 32 findings across five adversarial passes (including audits of the fixes themselves), each with severity, reproduction and remedy — plus a plainly stated residual-risk list |
 
+## Start here
+
+Open **`ai-workspace/hub.html`** in any browser — a dependency-free launcher page linking the
+live app, the offline demos, all documentation, the API surface and the command list, with a
+live status strip that detects a running server.
+
 ## Quick start (the app)
 
 ```bash

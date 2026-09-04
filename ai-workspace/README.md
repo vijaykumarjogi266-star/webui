@@ -18,6 +18,12 @@ A running implementation of the MVP core from `../ai-web-ui-plan/AI_WEB_UI_BUILD
 | Governance | Versioned default system prompt with retrieval-boundary injection defense; refusal phrasing rule |
 | Ops | `/api/health/live` + `/ready`, graceful SIGTERM persistence |
 
+## Project hub
+
+Open [`hub.html`](hub.html) in a browser — no server, no build step. It links the live app,
+the offline demos, every doc, the API surface and the command list, and its status strip
+probes the server to show whether it is up and whether a token is required.
+
 ## Run
 
 ```bash
