@@ -6,7 +6,10 @@ Everything below was reproduced against a running instance before and after the 
 **Scope:** `server.js`, `lib/{store,providers,rag,pdf}.js`, `public/{index,atelier}.html`,
 `scripts/smoke.js`, `Dockerfile`, deploy layer.
 **Method:** source review + live exploitation (curl) against `127.0.0.1:3000`.
-**Result:** 14 findings — 5 critical, 4 high, 3 medium, 2 low. All fixed. Smoke gate 19/19.
+**Result:** 14 findings — 5 critical, 4 high, 3 medium, 2 low. All fixed.
+A **second-pass self-audit of the fixes themselves** (§5) found 7 more issues in the patch,
+including a real CSRF bypass and an SSRF filter bypass. Those are fixed too.
+Smoke gate: **26/26**.
 
 ---
 
@@ -132,3 +135,32 @@ baseUrl http://169.254.169.254/latest              → 400 "blocked (private or 
 5. **JSON store** — no row-level access control or audit log; plan §9 replaces it with Postgres.
 6. **Always deploy behind TLS** (nginx site is included) and set `TRUST_PROXY=true` +
    `FORCE_HSTS=true` there.
+
+---
+
+## 5. Second pass — auditing the fixes
+
+A hardening patch is new attack surface. Re-reviewing `lib/security.js` and the wiring
+adversarially turned up 7 further defects, 2 of them serious enough to fully defeat a control
+I had just added.
+
+| # | Sev | Finding | Status |
+|---|-----|---------|--------|
+| V15 | **High** | **CSRF bypass via `X-Forwarded-Host`.** `checkOrigin()` preferred `X-Forwarded-Host` over `Host` unconditionally. Since that header is attacker-controlled when no proxy sets it, `Origin: https://evil.example` + `X-Forwarded-Host: evil.example` compared equal and passed. Verified live: **201 Created** on a cross-origin POST. Now only honoured when `TRUST_PROXY=true`, and an empty host never matches. | Fixed |
+| V16 | **High** | **SSRF filter bypass via IPv4-mapped IPv6.** `isPrivateIp()` only unmapped the dotted form `::ffff:169.254.169.254`, but Node's URL parser normalises that to the *hex* form `::ffff:a9fe:a9fe`, which fell through as public. `http://[::ffff:169.254.169.254]/` was **accepted**. Now both spellings are unmapped and re-checked (hex pairs are decoded back to dotted quads). | Fixed |
+| V17 | Medium | **`assertId()` accepted `__proto__` / `constructor`.** These are used directly as map keys (`db.messages[id]`, `db.repoFiles[id]`). `__proto__` silently discards the write, so a conversation could be created whose messages vanish — state corruption, and a footgun if the store shape ever changes. Prototype-colliding keys are now rejected. | Fixed |
+| V18 | Medium | **Unmatched `/api/*` GETs fell through to the static handler**, letting API paths be answered by file-serving logic rather than a clean JSON 404. `/api/*` now always terminates in the API layer. | Fixed |
+| V19 | Medium | **Evidence-block sanitiser was incomplete.** The delimiter regex only matched `DOCUMENT_EVIDENCE`-named markers, and `safeLoc` had a no-op replacement (`'"' → '"'`) that stripped nothing — so the attacker-controlled **repo path / page value** could inject `">>>` and escape the block even though the *text* was cleaned. All interpolated parts (filename, path, page) now go through one `clean()` that strips `<>"` and CR/LF and caps length; the text regex now redacts any `<<<…>>>` marker. | Fixed |
+| V20 | Low | **`timingSafeEqual('', '')` returned `true`.** Harmless as wired (a token is always ≥16 chars), but if `APP_TOKEN=''` were ever set, an empty `X-App-Token` header would authenticate. Empty inputs now never match. | Fixed |
+| V21 | Low | **`HEAD` requests streamed a response body** from `serveStatic`, and `.localhost` subdomains weren't in the internal-host blocklist. | Fixed |
+
+Also confirmed **not** vulnerable during this pass: `//api/bootstrap`, `/api/./bootstrap`,
+`/api/BOOTSTRAP` and trailing-slash variants all fail closed (401/404, no data); decimal
+(`http://2130706433/`), hex (`0x7f000001`), short-form (`127.1`) and `0` IP encodings are
+rejected by the URL parser plus the guard; DNS-rebinding-style names (`169.254.169.254.nip.io`)
+are caught by `assertResolvesPublic()`'s resolution check; `Origin: null` is rejected; the
+rate-limit sweep timer is `unref()`'d so it can't hold the process open.
+
+Regression tests for V15–V21 are in `scripts/smoke.js`, including two **raw-socket** checks
+(`//api/bootstrap`, `/../lib/store.js`) because `fetch()` rewrites those paths before they
+reach the wire and would silently pass a broken server.

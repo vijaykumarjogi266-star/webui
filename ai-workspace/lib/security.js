@@ -34,6 +34,7 @@ function loadAppToken(dataDir) {
 function timingSafeEqual(a, b) {
   const ba = Buffer.from(String(a || ''));
   const bb = Buffer.from(String(b || ''));
+  if (ba.length === 0 || bb.length === 0) return false; // empty never authenticates
   if (ba.length !== bb.length) {
     // still burn a comparison so length isn't leaked by timing alone
     crypto.timingSafeEqual(ba, ba);
@@ -73,16 +74,22 @@ function allowedOrigins() {
   return String(process.env.ALLOWED_ORIGINS || '')
     .split(',').map((s) => s.trim().replace(/\/+$/, '')).filter(Boolean);
 }
+function trustProxy() { return String(process.env.TRUST_PROXY || '').toLowerCase() === 'true'; }
 function checkOrigin(req) {
   if (SAFE_METHODS.has(req.method)) return true;
   const origin = req.headers.origin;
-  if (!origin) return true; // non-browser client (curl/CI); auth token still required
+  // 'null' is a real value browsers send from sandboxed iframes / data: URLs.
+  if (!origin || origin === 'null') return origin !== 'null'; // no Origin = non-browser (token still required); null = reject
   const extra = allowedOrigins();
   if (extra.includes(origin.replace(/\/+$/, ''))) return true;
   try {
     const o = new URL(origin);
-    const host = req.headers['x-forwarded-host'] || req.headers.host || '';
-    return o.host === host;
+    // X-Forwarded-Host is attacker-controlled unless a trusted proxy sets it.
+    // Honouring it unconditionally let `Origin: evil` + `X-Forwarded-Host: evil` pass.
+    const host = (trustProxy() && req.headers['x-forwarded-host'])
+      ? String(req.headers['x-forwarded-host']).split(',')[0].trim()
+      : (req.headers.host || '');
+    return !!host && o.host === host;
   } catch { return false; }
 }
 
@@ -101,9 +108,19 @@ function isPrivateIp(ip) {
     return false;
   }
   const s = ip.toLowerCase().replace(/^\[|\]$/g, '');
-  if (s === '::1' || s === '::' ) return true;
+  if (s === '::1' || s === '::') return true;
   if (s.startsWith('fe80') || s.startsWith('fc') || s.startsWith('fd')) return true;
-  if (s.startsWith('::ffff:')) return isPrivateIp(s.slice(7));
+  // IPv4-mapped IPv6. Node's URL parser compresses ::ffff:169.254.169.254 to the
+  // hex form ::ffff:a9fe:a9fe, so BOTH spellings must be unmapped and re-checked.
+  if (s.startsWith('::ffff:') || s.startsWith('::')) {
+    const tail = s.replace(/^::(ffff:)?/, '');
+    if (net.isIPv4(tail)) return isPrivateIp(tail);
+    const hex = /^([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(tail);
+    if (hex) {
+      const a = parseInt(hex[1], 16), b = parseInt(hex[2], 16);
+      return isPrivateIp([a >> 8, a & 255, b >> 8, b & 255].join('.'));
+    }
+  }
   return false;
 }
 
@@ -118,7 +135,8 @@ function assertSafeUrl(raw, { requireHttps = true } = {}) {
   if (u.username || u.password) throw bad('Credentials embedded in the URL are not allowed.');
   if (ALLOW_PRIVATE_EGRESS) return u;
   const host = u.hostname.replace(/^\[|\]$/g, '');
-  if (/^(localhost|.*\.local|.*\.internal|metadata\.google\.internal)$/i.test(host)) throw bad('That host is blocked (internal network).');
+  if (!host) throw bad('That URL has no host.');
+  if (/^(localhost|.*\.localhost|.*\.local|.*\.internal|metadata\.google\.internal)$/i.test(host)) throw bad('That host is blocked (internal network).');
   if ((net.isIP(host) && isPrivateIp(host))) throw bad('That host is blocked (private or link-local address).');
   return u;
 }
@@ -142,7 +160,7 @@ setInterval(() => {
 
 function clientIp(req) {
   const xf = req.headers['x-forwarded-for'];
-  if (xf && String(process.env.TRUST_PROXY || '').toLowerCase() === 'true') {
+  if (xf && trustProxy()) {
     return String(xf).split(',')[0].trim();
   }
   return req.socket?.remoteAddress || 'unknown';
@@ -196,16 +214,20 @@ function bad(message, code = 'invalid_input', status = 400) {
   return Object.assign(new Error(message), { status, code });
 }
 const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+// Keys that would collide with Object.prototype when used as a map index
+// (db.messages[id], db.repoFiles[id]). Assigning '__proto__' silently discards
+// the write, so these must never reach the store.
+const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype', 'hasOwnProperty', 'toString', 'valueOf']);
 const GH_SEGMENT_RE = /^[A-Za-z0-9._-]{1,100}$/;
 
 function assertId(v, label = 'id') {
   const s = String(v || '');
-  if (!ID_RE.test(s) || s === '.' || s === '..') throw bad(`Invalid ${label}.`);
+  if (!ID_RE.test(s) || s === '.' || s === '..' || UNSAFE_KEYS.has(s)) throw bad(`Invalid ${label}.`);
   return s;
 }
 function assertGithubSegment(v, label) {
   const s = String(v || '').trim();
-  if (!GH_SEGMENT_RE.test(s) || s === '.' || s === '..') throw bad(`Invalid ${label}. Use the plain owner/repo name.`);
+  if (!GH_SEGMENT_RE.test(s) || s === '.' || s === '..' || UNSAFE_KEYS.has(s)) throw bad(`Invalid ${label}. Use the plain owner/repo name.`);
   return s;
 }
 function assertString(v, label, max, { required = true, min = 0 } = {}) {
@@ -271,6 +293,7 @@ function resolveStatic(rootDir, urlPath) {
 }
 
 module.exports = {
+  UNSAFE_KEYS, trustProxy,
   AUTH_DISABLED, COOKIE, TOKEN_TTL_MS,
   loadAppToken, timingSafeEqual, mintSession, verifySession, parseCookies,
   checkOrigin, SAFE_METHODS,
