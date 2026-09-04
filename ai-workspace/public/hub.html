@@ -136,11 +136,11 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
   <!-- ---------- offline demos ---------- -->
   <h2>Offline demos <span class="badge green">no server required</span></h2>
   <div class="grid">
-    <a class="card" href="demo-ui.html">
+    <a class="card" href="../demo-ui.html" data-doc="demo-ui.html">
       <div class="t"><span class="ico">▶</span> Chat UI demo</div>
       <div class="d">The real interface with a mock backend injected. Opens straight from disk — good for a walkthrough with no keys or setup.</div>
     </a>
-    <a class="card" href="demo-atelier.html">
+    <a class="card" href="../demo-atelier.html" data-doc="demo-atelier.html">
       <div class="t"><span class="ico">▶</span> Atelier UI demo</div>
       <div class="d">Same treatment for the alternate layout.</div>
     </a>
@@ -149,27 +149,27 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
   <!-- ---------- docs ---------- -->
   <h2>Documentation</h2>
   <div class="grid">
-    <a class="card" href="README.md">
+    <a class="card" href="../README.md" data-doc="README.md">
       <div class="t"><span class="ico">📘</span> App README</div>
       <div class="d">Quick start, the access-token gate, environment variables, test commands.</div>
     </a>
-    <a class="card" href="SECURITY.md">
+    <a class="card" href="../SECURITY.md" data-doc="SECURITY.md">
       <div class="t"><span class="ico">🛡</span> Security review <span class="badge amber">34 findings</span></div>
       <div class="d">Six adversarial passes — each also auditing the previous pass's fixes. Reproductions, remedies, and a plainly stated residual-risk list.</div>
     </a>
-    <a class="card" href="CHANGELOG.md">
+    <a class="card" href="../CHANGELOG.md" data-doc="CHANGELOG.md">
       <div class="t"><span class="ico">📋</span> Changelog</div>
       <div class="d">What shipped in 1.0.0-rc.1, what broke, and the known limitations.</div>
     </a>
-    <a class="card" href="BUILD_REVIEW.md">
+    <a class="card" href="../BUILD_REVIEW.md" data-doc="BUILD_REVIEW.md">
       <div class="t"><span class="ico">🔍</span> Build review</div>
       <div class="d">12-point acceptance battery plus the production gaps, each mapped to a plan section.</div>
     </a>
-    <a class="card" href="deploy/README.md">
+    <a class="card" href="../deploy/README.md" data-doc="deploy/README.md">
       <div class="t"><span class="ico">🚀</span> Deploy runbook</div>
       <div class="d">Docker, compose, systemd + nginx, PaaS manifests, and the persistence caveat.</div>
     </a>
-    <a class="card" href="../ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md">
+    <a class="card" href="../../ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md" data-doc="../ai-web-ui-plan/AI_WEB_UI_BUILD_PLAN.md">
       <div class="t"><span class="ico">📐</span> Build plan <span class="badge">47 sections</span></div>
       <div class="d">The full production blueprint this build implements a core slice of.</div>
     </a>
@@ -208,8 +208,9 @@ footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--border
   </div>
 
   <footer>
-    Static hub page — no build step, no dependencies, no tracking. Links resolve relative to
-    <code>ai-workspace/</code>. Live links target the origin in the status bar above.
+    Static hub page — no build step, no dependencies, no tracking. Served at
+    <code>/hub.html</code> and also openable directly from disk; document links adapt to
+    whichever you are using. Live links target the origin in the status bar above.
   </footer>
 </div>
 

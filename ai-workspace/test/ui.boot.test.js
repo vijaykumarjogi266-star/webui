@@ -77,13 +77,24 @@ for (const file of ['index.js', 'atelier.js']) {
 }
 
 test('no inline event handlers or inline <script> remain in the served HTML/JS', () => {
-  for (const f of ['index.html', 'atelier.html', 'index.js', 'atelier.js']) {
+  for (const f of ['index.html', 'atelier.html', 'hub.html', 'index.js', 'atelier.js', 'hub.js']) {
     const src = fs.readFileSync(path.join(PUBLIC, f), 'utf8');
     assert.ok(!/\son\w+\s*=\s*["']/.test(src), `${f} still contains an inline event handler`);
   }
-  for (const f of ['index.html', 'atelier.html']) {
+  for (const f of ['index.html', 'atelier.html', 'hub.html']) {
     const src = fs.readFileSync(path.join(PUBLIC, f), 'utf8');
+    if (f !== 'hub.html') assert.ok(!/<style>/.test(src), `${f} still contains an inline <style> block`);
     assert.ok(!/<script>/.test(src), `${f} still contains an inline <script> block`);
-    assert.ok(!/<style>/.test(src), `${f} still contains an inline <style> block`);
+  }
+});
+
+test('hub.html relative document links resolve on disk', () => {
+  const src = fs.readFileSync(path.join(PUBLIC, 'hub.html'), 'utf8');
+  const hrefs = [...src.matchAll(/href="([^"]+)"/g)].map((m) => m[1])
+    .filter((h) => !/^https?:/.test(h));
+  assert.ok(hrefs.length > 0, 'no relative links found');
+  for (const h of hrefs) {
+    const target = path.resolve(PUBLIC, h.split('#')[0]);
+    assert.ok(fs.existsSync(target), `hub.html links to a missing file: ${h}`);
   }
 });

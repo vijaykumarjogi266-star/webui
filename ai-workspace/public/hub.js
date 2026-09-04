@@ -42,6 +42,30 @@ document.getElementById('api').innerHTML = ROUTES.map(([p, m, a, d]) => `
     <td>${d}</td>
   </tr>`).join('');
 
+/* ---------- document links ----------
+   The hub is reachable two ways and the markdown files sit outside the served
+   root, so their location differs:
+     file://  .../ai-workspace/public/hub.html  -> ../README.md   (works on disk)
+     http://  <origin>/hub.html                 -> NOT served     (404)
+   Over HTTP we therefore point documentation at the GitHub blob view, which is
+   both reachable and nicer to read than a raw .md download. */
+const REPO = 'https://github.com/vijaykumarjogi266-star/webui/blob/master/ai-workspace/';
+if (location.protocol !== 'file:') {
+  document.querySelectorAll('a[data-doc]').forEach((a) => {
+    const rel = a.dataset.doc;
+    if (rel.endsWith('.html')) {
+      // Demo artifacts are not served either; keep them out of the way.
+      a.href = REPO + rel;
+      a.querySelector('.d').insertAdjacentHTML('beforeend',
+        ' <span class="badge">opens on GitHub</span>');
+      return;
+    }
+    a.href = rel.startsWith('../')
+      ? REPO.replace('/ai-workspace/', '/') + rel.slice(3)
+      : REPO + rel;
+  });
+}
+
 /* ---------- live status ---------- */
 const $ = (id) => document.getElementById(id);
 const originInput = $('origin');

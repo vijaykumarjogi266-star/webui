@@ -376,6 +376,11 @@ table.tbl { width:100%; border-collapse:collapse; font-size:13.5px; }
 })();
 /* ================= end shim ================= */
 
+/* Hoisted: these are used by top-level statements below (theme toggle runs at
+   load). With the bundle now external + deferred, a TDZ error here blanked the
+   whole page. See SECURITY.md V34. */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 /* ============ state ============ */
 const S = {
   view: 'chat', credentials: [], conversations: [], files: [], repos: [],
@@ -399,8 +404,6 @@ function applyTheme() { document.documentElement.classList.toggle('dark', localS
 $('#theme-toggle').onclick = () => { localStorage.setItem('theme', localStorage.getItem('theme') === 'dark' ? 'light' : 'dark'); applyTheme(); };
 applyTheme();
 /* ============ utils ============ */
-const $ = (s, el = document) => el.querySelector(s);
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 function toast(msg, isErr) {
   const t = document.createElement('div'); t.className = 'toast' + (isErr ? ' err' : ''); t.textContent = msg;
   $('#toasts').appendChild(t); setTimeout(() => t.remove(), 5200);

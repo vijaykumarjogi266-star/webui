@@ -20,9 +20,12 @@ A running implementation of the MVP core from `../ai-web-ui-plan/AI_WEB_UI_BUILD
 
 ## Project hub
 
-Open [`hub.html`](hub.html) in a browser — no server, no build step. It links the live app,
-the offline demos, every doc, the API surface and the command list, and its status strip
-probes the server to show whether it is up and whether a token is required.
+**With the server running: <http://localhost:3000/hub.html>** — a launcher page linking the
+live app, the offline demos, every doc, the API surface and the command list, with a status
+strip showing whether the server is up and whether a token is required. No sign-in needed.
+
+You can also open [`public/hub.html`](public/hub.html) straight from disk with no server at
+all; the documentation links adapt to whichever context you are in.
 
 ## Run
 
