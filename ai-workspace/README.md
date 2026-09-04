@@ -57,3 +57,16 @@ node scripts/smoke.js   # 8/8 green = healthy boot
 - JSON file store instead of PostgreSQL
 
 Every simplification maps to a production-plan section that closes it.
+
+## Security
+
+This build is gated by an access token and hardened against the findings in
+[`SECURITY.md`](SECURITY.md) (14 issues from an adversarial review: missing auth, SSRF via
+custom provider base URLs and image attachments, CSRF, GitHub path injection, a markdown-
+renderer XSS, missing rate limits and security headers, path traversal, and secret hygiene).
+
+On first boot the server prints a generated access token and stores it at `data/app.token`
+(mode 0600). Paste it into the unlock prompt in the UI, or send it as
+`Authorization: Bearer <token>`. Override with `APP_TOKEN`; set `AUTH_DISABLED=true` only on a
+trusted loopback dev box. `npm run smoke` runs the 19-check gate, 12 of which are security
+assertions. Always deploy behind TLS with `TRUST_PROXY=true` and `FORCE_HSTS=true`.

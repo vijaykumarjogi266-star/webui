@@ -2,6 +2,11 @@
 // Server-side only — keys never touch the browser (build plan §5.4, §13).
 'use strict';
 
+const sec = require('./security');
+
+const MAX_MODEL_BODY = 4 * 1024 * 1024;
+const MAX_STREAM_CHARS = Number(process.env.MAX_STREAM_CHARS) || 2 * 1024 * 1024;
+
 const BASES = {
   openrouter: 'https://openrouter.ai/api/v1',
   groq: 'https://api.groq.com/openai/v1',
@@ -14,12 +19,22 @@ const GROQ_CONTEXT = [
 ];
 
 function baseUrlFor(cred) {
-  if (cred.provider === 'custom') return (cred.baseUrl || '').replace(/\/+$/, '');
-  return BASES[cred.provider];
+  if (cred.provider === 'custom') {
+    // Re-validate on every use: a stored record could predate the SSRF guard
+    // or have been tampered with in the JSON store.
+    const raw = (cred.baseUrl || '').replace(/\/+$/, '');
+    sec.assertSafeUrl(raw, { requireHttps: false });
+    return raw;
+  }
+  const base = BASES[cred.provider];
+  if (!base) throw Object.assign(new Error('Unknown provider.'), { status: 400 });
+  return base;
 }
 
 function headersFor(apiKey, provider) {
-  const h = { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` };
+  // Header-injection guard: a key containing CR/LF could forge extra headers.
+  const key = String(apiKey || '').replace(/[\r\n\0]/g, '');
+  const h = { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` };
   if (provider === 'openrouter') {
     h['HTTP-Referer'] = 'https://ai-workspace.local';
     h['X-Title'] = 'AI Workspace (demo build)';
@@ -69,7 +84,9 @@ async function listModels(cred, apiKey) {
   const res = await fetch(`${base}/models`, { headers: headersFor(apiKey, cred.provider), signal: AbortSignal.timeout(20000) });
   const text = await res.text();
   if (!res.ok) throw normalizeError(res.status, text);
-  const json = JSON.parse(text);
+  if (text.length > MAX_MODEL_BODY) throw Object.assign(new Error('The provider returned an unexpectedly large model list.'), { status: 502 });
+  let json;
+  try { json = JSON.parse(text); } catch { throw Object.assign(new Error('The provider returned a malformed model list.'), { status: 502 }); }
   const raw = Array.isArray(json) ? json : json.data || [];
   return raw.map((m) => {
     const pricing = m.pricing || {};
@@ -96,7 +113,7 @@ async function streamChat({ cred, apiKey, model, messages, temperature = 0.7, ma
   if (cred.provider === 'openrouter') body.stream_options = { include_usage: true };
 
   const res = await fetch(`${base}/chat/completions`, {
-    method: 'POST', headers: headersFor(apiKey, cred.provider), body: JSON.stringify(body), signal,
+    method: 'POST', headers: headersFor(apiKey, cred.provider), body: JSON.stringify(body), signal, redirect: 'error',
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
@@ -121,7 +138,10 @@ async function streamChat({ cred, apiKey, model, messages, temperature = 0.7, ma
     if (!choice) return;
     if (choice.finish_reason) finishReason = choice.finish_reason;
     const delta = choice.delta?.content;
-    if (delta) { full += delta; onEvent({ type: 'delta', text: delta }); }
+    if (delta) {
+      if (full.length + delta.length > MAX_STREAM_CHARS) { finishReason = finishReason || 'length_guard'; return; }
+      full += delta; onEvent({ type: 'delta', text: delta });
+    }
   };
 
   while (true) {

@@ -6,11 +6,18 @@ const path = require('path');
 const crypto = require('crypto');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
-fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
+try { fs.chmodSync(DATA_DIR, 0o700); } catch { /* best effort on odd filesystems */ }
 
 function loadJson(name, fallback) {
-  try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, name), 'utf8')); }
-  catch { return fallback; }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(DATA_DIR, name), 'utf8'));
+    // Shape guard: a corrupted/tampered file must not turn into prototype-polluting
+    // or wrongly-typed state at boot.
+    if (Array.isArray(fallback) ? !Array.isArray(parsed) : (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed))) return fallback;
+    if (!Array.isArray(parsed)) { delete parsed.__proto__; delete parsed.constructor; }
+    return parsed;
+  } catch { return fallback; }
 }
 
 const COLLECTIONS = ['credentials', 'conversations', 'messages', 'files', 'chunks', 'repos', 'repoFiles', 'feedback', 'usage'];
@@ -21,7 +28,7 @@ let saveTimer = null;
 function atomicWrite(name, data) {
   const fp = path.join(DATA_DIR, name);
   const tmp = fp + '.tmp';
-  fs.writeFileSync(tmp, data);
+  fs.writeFileSync(tmp, data, { mode: 0o600 });
   fs.renameSync(tmp, fp); // atomic on POSIX: a crash never leaves a torn file
 }
 function persistNow() {
@@ -36,8 +43,12 @@ function persist() {
 // ---- master key (demo-grade; production: OCI KMS-wrapped envelope keys) ----
 const KEY_PATH = path.join(DATA_DIR, 'master.key');
 let MASTER;
-if (fs.existsSync(KEY_PATH)) {
+if (process.env.MASTER_KEY && /^[0-9a-fA-F]{64}$/.test(process.env.MASTER_KEY)) {
+  MASTER = Buffer.from(process.env.MASTER_KEY, 'hex'); // preferred: injected by a secret manager
+} else if (fs.existsSync(KEY_PATH)) {
   MASTER = Buffer.from(fs.readFileSync(KEY_PATH, 'utf8').trim(), 'hex');
+  if (MASTER.length !== 32) throw new Error('data/master.key is corrupt (expected 32 bytes hex).');
+  try { fs.chmodSync(KEY_PATH, 0o600); } catch {}
 } else {
   MASTER = crypto.randomBytes(32);
   fs.writeFileSync(KEY_PATH, MASTER.toString('hex'), { mode: 0o600 });
@@ -50,6 +61,7 @@ function encryptSecret(plain) {
   return { iv: iv.toString('base64'), ct: ct.toString('base64'), tag: c.getAuthTag().toString('base64') };
 }
 function decryptSecret(enc) {
+  if (!enc || typeof enc !== 'object' || !enc.iv || !enc.ct || !enc.tag) throw new Error('Stored credential is unreadable.');
   const d = crypto.createDecipheriv('aes-256-gcm', MASTER, Buffer.from(enc.iv, 'base64'));
   d.setAuthTag(Buffer.from(enc.tag, 'base64'));
   return Buffer.concat([d.update(Buffer.from(enc.ct, 'base64')), d.final()]).toString('utf8');

@@ -192,10 +192,52 @@ function toast(msg, isErr) {
   $('#toasts').appendChild(t); setTimeout(() => t.remove(), 5200);
 }
 async function api(method, url, body) {
-  const res = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(url, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : {},
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: 'same-origin',
+  });
   const j = await res.json().catch(() => ({}));
+  if (res.status === 401) { showLogin(); throw new Error(j?.error?.message || 'Sign in to continue.'); }
   if (!res.ok) throw new Error(j?.error?.message || ('Request failed (' + res.status + ')'));
   return j;
+}
+/* Access-token gate. The server prints the token on first boot (data/app.token). */
+function showLogin(msg) {
+  if (document.getElementById('login-gate')) return;
+  const w = document.createElement('div');
+  w.id = 'login-gate';
+  w.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(15,18,25,.72);display:flex;align-items:center;justify-content:center;padding:20px';
+  const card = document.createElement('div');
+  card.style.cssText = 'background:#fff;color:#111;max-width:420px;width:100%;border-radius:14px;padding:24px;font-family:inherit;box-shadow:0 20px 60px rgba(0,0,0,.35)';
+  const h = document.createElement('h2'); h.textContent = 'Access token required'; h.style.cssText = 'margin:0 0 8px;font-size:18px';
+  const p = document.createElement('p'); p.style.cssText = 'margin:0 0 14px;font-size:13px;color:#555';
+  p.textContent = msg || 'This workspace holds your provider API keys. Paste the access token printed in the server log (or stored at data/app.token).';
+  const inp = document.createElement('input'); inp.type = 'password'; inp.autocomplete = 'current-password'; inp.placeholder = 'Access token';
+  inp.style.cssText = 'width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:8px;font-size:14px;box-sizing:border-box';
+  const err = document.createElement('div'); err.style.cssText = 'color:#b3261e;font-size:12px;min-height:16px;margin:8px 0';
+  const btn = document.createElement('button'); btn.textContent = 'Unlock';
+  btn.style.cssText = 'width:100%;padding:10px;border:0;border-radius:8px;background:#2f5bea;color:#fff;font-size:14px;cursor:pointer';
+  const submit = async () => {
+    err.textContent = '';
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: inp.value }), credentials: 'same-origin',
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) { err.textContent = j?.error?.message || 'Sign-in failed.'; return; }
+      w.remove();
+      location.reload();
+    } catch (e) { err.textContent = 'Network error.'; }
+  };
+  btn.onclick = submit;
+  inp.onkeydown = (e) => { if (e.key === 'Enter') submit(); };
+  card.append(h, p, inp, err, btn);
+  w.appendChild(card);
+  document.body.appendChild(w);
+  inp.focus();
 }
 function fmtBytes(n) { if (!n) return ''; return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.ceil(n / 1024) + ' KB'; }
 function timeAgo(iso) { const d = (Date.now() - new Date(iso)) / 1000; if (d < 60) return 'just now'; if (d < 3600) return Math.floor(d / 60) + 'm ago'; if (d < 86400) return Math.floor(d / 3600) + 'h ago'; return new Date(iso).toLocaleDateString(); }
@@ -205,7 +247,11 @@ function stPill(st) {
 }
 function md(text) {
   const store = [];
-  let s = String(text ?? '').replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => { store.push({ lang: lang || '', code }); return '\x00C' + (store.length - 1) + '\x00'; });
+  // Unguessable sentinel + control-char strip: model output cannot forge a
+  // placeholder and get raw HTML re-inserted after escaping.
+  const SENT = 'X' + Math.random().toString(36).slice(2) + Date.now().toString(36) + 'X';
+  let s = String(text ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+    .replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => { store.push({ lang: lang || '', code }); return SENT + (store.length - 1) + SENT; });
   s = esc(s);
   s = s.replace(/`([^`\n]+)`/g, '<code class="inline">$1</code>');
   s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
@@ -218,7 +264,7 @@ function md(text) {
   s = s.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
   s = s.replace(/\n{2,}/g, '</p><p>');
   s = '<p>' + s + '</p>';
-  s = s.replace(/\x00C(\d+)\x00/g, (_, i) => {
+  s = s.replace(new RegExp(SENT + '(\\d+)' + SENT, 'g'), (_, i) => {
     const b = store[+i];
     return '<div class="code-head"><span>' + esc(b.lang || 'code') + '</span><button class="copy-code btn ghost sm">copy</button></div><pre><code>' + esc(b.code) + '</code></pre>';
   });
@@ -466,7 +512,8 @@ async function doSend() {
   renderThread(); renderComposer(); renderRail();
   S.abort = new AbortController();
   try {
-    const resp = await fetch('/api/chat/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: S.abort.signal });
+    const resp = await fetch('/api/chat/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), signal: S.abort.signal, credentials: 'same-origin' });
+    if (resp.status === 401) { showLogin(); throw new Error('Sign in to continue.'); }
     if (!resp.ok) { const j = await resp.json().catch(() => ({})); throw new Error(j?.error?.message || 'Request failed'); }
     const reader = resp.body.getReader(); const dec = new TextDecoder();
     let buf = '', ev = 'message';

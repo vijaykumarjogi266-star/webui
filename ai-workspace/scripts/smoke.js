@@ -14,15 +14,41 @@ const APP_DIR = path.join(__dirname, '..');
 const TARGET = process.env.SMOKE_URL ? String(process.env.SMOKE_URL).replace(/\/+$/, '') : null;
 const PORT = TARGET ? null : Number(process.env.SMOKE_PORT || 3100 + Math.floor(Math.random() * 300));
 const DEADLINE_MS = Number(process.env.SMOKE_TIMEOUT_MS || 25000);
+// The auth gate is part of the build now: the smoke run injects a known token so
+// it can exercise both the unauthenticated (401) and authenticated paths.
+const APP_TOKEN = process.env.APP_TOKEN || 'smoke-token-' + Math.random().toString(36).slice(2, 10);
 
 const checks = [
   { name: 'GET /api/health/live → 200 ok:true', method: 'GET', path: '/api/health/live', status: 200, json: (b) => b && b.ok === true },
   { name: 'GET /api/health/ready → 200 with counters', method: 'GET', path: '/api/health/ready', status: 200, json: (b) => b && b.ok === true && typeof b.credentials === 'number' },
   { name: 'GET / → HTML shell', method: 'GET', path: '/', status: 200, text: (t) => /<html|<!doctype html>/i.test(t) },
-  { name: 'GET /api/bootstrap → JSON', method: 'GET', path: '/api/bootstrap', status: 200, json: (b) => b && typeof b === 'object' },
-  { name: 'GET /api/nope → 404 JSON error', method: 'GET', path: '/api/nope', status: 404, json: (b) => b && b.error },
-  { name: 'POST /api/chat/stream without creds → 400, no crash', method: 'POST', path: '/api/chat/stream', status: 400, json: (b) => b && b.error },
+  { name: 'GET /api/bootstrap (authed) → JSON', method: 'GET', path: '/api/bootstrap', auth: true, status: 200, json: (b) => b && typeof b === 'object' },
+  { name: 'GET /api/nope (authed) → 404 JSON error', method: 'GET', path: '/api/nope', auth: true, status: 404, json: (b) => b && b.error },
+  { name: 'POST /api/chat/stream without creds → 400, no crash', method: 'POST', path: '/api/chat/stream', auth: true, status: 400, json: (b) => b && b.error },
   { name: 'GET /../../etc/passwd traversal blocked', method: 'GET', path: '/../..%2fetc%2fpasswd', status: [400, 403, 404] },
+
+  // ---- security gates (added after the adversarial review; see SECURITY.md) ----
+  { name: 'security headers present on /', method: 'GET', path: '/', status: 200,
+    headers: (h) => /frame-ancestors 'none'/.test(h.get('content-security-policy') || '')
+      && h.get('x-content-type-options') === 'nosniff' && h.get('x-frame-options') === 'DENY' },
+  { name: 'GET /api/bootstrap unauthenticated → 401', method: 'GET', path: '/api/bootstrap', status: 401, json: (b) => b && b.error },
+  { name: 'GET /api/credentials unauthenticated → 401 (no key metadata leak)', method: 'GET', path: '/api/credentials', status: 401 },
+  { name: 'POST /api/auth/login wrong token → 401', method: 'POST', path: '/api/auth/login', body: { token: 'wrong-token-value' }, status: 401 },
+  { name: 'cross-origin POST blocked (CSRF)', method: 'POST', path: '/api/auth/login', status: [401, 403],
+    extraHeaders: { origin: 'https://evil.example' } },
+  { name: 'authed: custom provider pointing at metadata IP rejected (SSRF)', method: 'POST', path: '/api/credentials', auth: true,
+    body: { provider: 'custom', apiKey: 'sk-test-1234567890', baseUrl: 'http://169.254.169.254/latest' }, status: 400 },
+  { name: 'authed: custom provider pointing at localhost rejected (SSRF)', method: 'POST', path: '/api/credentials', auth: true,
+    body: { provider: 'custom', apiKey: 'sk-test-1234567890', baseUrl: 'http://127.0.0.1:3000/v1' }, status: 400 },
+  { name: 'authed: github owner path-injection rejected', method: 'POST', path: '/api/github', auth: true,
+    body: { owner: '../../users', repo: 'x' }, status: 400 },
+  { name: 'authed: unsupported/oversized upload rejected', method: 'POST', path: '/api/files', auth: true,
+    body: { name: 'evil.exe', dataBase64: 'AAAA' }, status: 400 },
+  { name: 'authed: fake-PDF signature rejected', method: 'POST', path: '/api/files', auth: true,
+    body: { name: 'fake.pdf', dataBase64: Buffer.from('<script>alert(1)</script>').toString('base64') }, status: [201, 400],
+    json: (b) => !b || !b.file || b.file.indexStatus !== 'ready' || b.error },
+  { name: 'authed: remote image URL rejected in chat (SSRF)', method: 'POST', path: '/api/chat/stream', auth: true,
+    body: { credentialId: 'nope', model: 'm', message: 'hi', images: [{ name: 'x', dataUrl: 'http://169.254.169.254/' }] }, status: 400 },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -42,18 +68,20 @@ async function waitReady(base) {
 
 async function runCheck(base, c) {
   const url = new URL(c.path, base);
-  const init = { method: c.method, headers: {} };
-  if (c.method === 'POST') {
+  const init = { method: c.method, headers: { ...(c.extraHeaders || {}) } };
+  if (c.method === 'POST' || c.method === 'PUT') {
     init.headers['content-type'] = 'application/json';
     init.body = JSON.stringify(c.body || {});
   }
-  const res = await fetch(url, { ...init, redirect: 'manual', signal: AbortSignal.timeout(5000) });
+  if (c.auth && APP_TOKEN) init.headers.authorization = `Bearer ${APP_TOKEN}`;
+  const res = await fetch(url, { ...init, redirect: 'manual', signal: AbortSignal.timeout(8000) });
   const bodyText = await res.text();
   let bodyJson = null;
   try { bodyJson = JSON.parse(bodyText); } catch { /* html or empty */ }
 
   const want = Array.isArray(c.status) ? c.status : [c.status];
   if (!want.includes(res.status)) return `HTTP ${res.status} (want ${want.join('|')})`;
+  if (c.headers && !c.headers(res.headers)) return 'expected security headers missing';
   if (c.json && !c.json(bodyJson)) return 'body is not the expected JSON shape';
   if (c.text && !c.text(bodyText)) return 'body is not the expected text';
   return null;
@@ -65,7 +93,7 @@ async function runCheck(base, c) {
   if (!TARGET) {
     child = spawn(process.execPath, [path.join(APP_DIR, 'server.js')], {
       cwd: APP_DIR,
-      env: { ...process.env, PORT: String(PORT), NODE_ENV: process.env.NODE_ENV || 'test' },
+      env: { ...process.env, PORT: String(PORT), NODE_ENV: process.env.NODE_ENV || 'test', APP_TOKEN },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let logs = '';
